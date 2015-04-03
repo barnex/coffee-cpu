@@ -20,15 +20,15 @@ The coffee CPU currently has:
   * this instruction set:
 
 ```
-NOP            : no-op
-LOAD   RA ADDR : load from memory address ADDR into register RA
-STORE  RA ADDR : store from register RA into memory address ADDR
-LOADLI RA VALUE: load VALUE (16 bit) into the lower half of register RA
-LOADHI RA VALUE: load VALUE (16 bit) into the upper half of register RA
-JMPZ   RA DELTA: if RA holds zero, make a relative jump of DELTA instructions
-MOV    RA RB   : copy RA into RB
-AND    RA RB RC: bitwise and: RC = RA & RB
-OR     RA RB RC: bitwise or : RC = RA | RB
-XOR    RA RB RC: bitwise xor: RC = RA ^ RB
-ADD    RA RB RC: integer add: RC = RA + RB
+NOP             : no-op
+LOAD   RA ADDR  : load from memory address ADDR into register RA
+STORE  RA ADDR  : store from register RA into memory address ADDR
+LOADLI RA VALUE : load VALUE (16 bit) into the lower half of register RA
+LOADHI RA VALUE : load VALUE (16 bit) into the upper half of register RA
+JMPZ   RA DELTA : if RA holds zero, make a relative jump of DELTA instructions
+MOV    RA RB    : copy RA into RB
+AND    RA RB RC : bitwise and: RC = RA & RB
+OR     RA RB RC : bitwise or : RC = RA | RB
+XOR    RA RB RC : bitwise xor: RC = RA ^ RB
+ADD    RA RB RC : integer add: RC = RA + RB
 ```
