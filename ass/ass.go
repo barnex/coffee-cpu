@@ -17,16 +17,20 @@ const (
 )
 
 const (
-	NOP = 0
+	NOP = 0x0
 	// Register-Address
-	LOAD   = 1
-	STORE  = 2
-	LOADLI = 3
-	LOADHI = 4
-	JUMPZ  = 5
+	LOAD   = 0x1
+	STORE  = 0x2
+	LOADLI = 0x3
+	LOADHI = 0x4
+	JUMPZ  = 0x5
 	// Register-Register-Register
-	FIRST_RRR = 6 // not an opcode, marks beginning of RRR opcodes
-	AND       = 6
+	FIRST_RRR = MOV // not an opcode, marks beginning of RRR opcodes
+	MOV       = 0x6
+	AND       = 0x7
+	OR        = 0x8
+	XOR       = 0x9
+	ADD       = 0xA
 )
 
 func IsRegAddr(opc uint32) bool {
@@ -44,7 +48,11 @@ var opcodes = map[string]uint32{
 	"LOADLI": LOADLI,
 	"LOADHI": LOADHI,
 	"JUMPZ":  JUMPZ,
+	"MOV":    MOV,
 	"AND":    AND,
+	"OR":     OR,
+	"XOR":    XOR,
+	"ADD":    ADD,
 }
 
 var (
