@@ -28,9 +28,12 @@ func main() {
 
 		outfname := fname[:len(fname)-len(path.Ext(fname))] + ".ihex"
 		out, err := os.Create(outfname)
+		Check(err)
 
 		Assemble(f, out)
+
 		f.Close()
+		out.Close()
 	}
 }
 
