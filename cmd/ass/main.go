@@ -8,8 +8,14 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
+)
+
+var (
+	filename   string
+	linenumber int
 )
 
 func main() {
@@ -17,14 +23,18 @@ func main() {
 	flag.Parse()
 	for _, fname := range flag.Args() {
 		f, err := os.Open(fname)
-		filename = fname
 		Check(err)
-		Assemble(f)
+		filename = fname
+
+		outfname := fname[:len(fname)-len(path.Ext(fname))] + ".ihex"
+		out, err := os.Create(outfname)
+
+		Assemble(f, out)
 		f.Close()
 	}
 }
 
-var opcodes = map[string]uint32{
+var opcodes = map[string]uint8{
 	"NOP":    NOP,
 	"LOAD":   LOAD,
 	"STORE":  STORE,
@@ -38,18 +48,9 @@ var opcodes = map[string]uint32{
 	"ADD":    ADD,
 }
 
-var (
-	filename   string
-	linenumber int
-)
+const COMMENT = "//"
 
-func Check(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func Assemble(in io.Reader) {
+func Assemble(in io.Reader, out io.Writer) {
 	reader := bufio.NewReader(in)
 	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
 		if len(words) == 0 {
@@ -64,15 +65,15 @@ func Assemble(in io.Reader) {
 
 		if IsRegAddr(opc) {
 			CheckOps(words, 2)
-			bits = opc<<24 | Reg(0, words)<<16 | uint32(Addr(words))
+			bits = uint32(opc)<<24 | Reg(0, words)<<16 | uint32(Addr(words))
 		}
 
 		if IsReg3(opc) {
 			CheckOps(words, 3)
-			bits = opc<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
+			bits = uint32(opc)<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
 		}
 
-		fmt.Printf("0x%08X,\n", bits)
+		fmt.Fprintf(out, "0x%08X,\n", bits)
 	}
 }
 
@@ -140,8 +141,12 @@ func ParseLine(in *bufio.Reader) ([]string, bool) {
 	return tokens, true
 }
 
-const COMMENT = "//"
-
 func assemble(words []string) {
 	fmt.Println(len(words))
+}
+
+func Check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
