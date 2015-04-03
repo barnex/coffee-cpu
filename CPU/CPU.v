@@ -1,9 +1,17 @@
 module CPU(output data[15:0], input q[15:0], output wren, input clk, output [7:0]status);
 
-`define NOP 8h0;
-`define LOAD 8h1;
-`define STORE 8h2;
-`define MOV 8h3;
+`define NOP    8h0;
+`define LOAD   8h1;
+`define STORE  8h2;
+`define LOADLI 8h3;
+`define LOADHI 8h4;
+`define JUMPZ  8h5;
+
+`define MOV 8h6;
+`define AND 8h7;
+`define OR  8h8;
+`define XOR 8h9;
+`define ADD 8hA;
 
 
 reg [15:0] pc;
