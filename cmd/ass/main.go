@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	. "github.com/barnex/coffee-cpu/isa"
 	"io"
 	"log"
 	"os"
@@ -11,34 +12,16 @@ import (
 	"strings"
 )
 
-const (
-	MAXREG = 255
-	MAXINT = 1<<32 - 1
-)
-
-const (
-	NOP = 0x0
-	// Register-Address
-	LOAD   = 0x1
-	STORE  = 0x2
-	LOADLI = 0x3
-	LOADHI = 0x4
-	JMPZ   = 0x5
-	// Register-Register-Register
-	FIRST_RRR = MOV // not an opcode, marks beginning of RRR opcodes
-	MOV       = 0x6
-	AND       = 0x7
-	OR        = 0x8
-	XOR       = 0x9
-	ADD       = 0xA
-)
-
-func IsRegAddr(opc uint32) bool {
-	return opc > NOP && opc < FIRST_RRR
-}
-
-func IsRegRegReg(opc uint32) bool {
-	return opc >= FIRST_RRR
+func main() {
+	log.SetFlags(0)
+	flag.Parse()
+	for _, fname := range flag.Args() {
+		f, err := os.Open(fname)
+		filename = fname
+		Check(err)
+		Assemble(f)
+		f.Close()
+	}
 }
 
 var opcodes = map[string]uint32{
@@ -59,18 +42,6 @@ var (
 	filename   string
 	linenumber int
 )
-
-func main() {
-	log.SetFlags(0)
-	flag.Parse()
-	for _, fname := range flag.Args() {
-		f, err := os.Open(fname)
-		filename = fname
-		Check(err)
-		Assemble(f)
-		f.Close()
-	}
-}
 
 func Check(err error) {
 	if err != nil {
@@ -96,7 +67,7 @@ func Assemble(in io.Reader) {
 			bits = opc<<24 | Reg(0, words)<<16 | uint32(Addr(words))
 		}
 
-		if IsRegRegReg(opc) {
+		if IsReg3(opc) {
 			CheckOps(words, 3)
 			bits = opc<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
 		}

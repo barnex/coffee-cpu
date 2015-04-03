@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	. "github.com/barnex/coffee-cpu/isa"
 	"io"
 	"log"
 	"os"
