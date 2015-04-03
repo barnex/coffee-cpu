@@ -96,6 +96,7 @@ func Run() {
 	}
 }
 
+// load word form data region, prevent access to instructions
 func load(addr uint16) uint32 {
 	if addr < datastart {
 		Fatalf("SIGSEGV: pc%08X: load %08X (<%08X)", pc, addr, datastart)
@@ -103,6 +104,7 @@ func load(addr uint16) uint32 {
 	return mem[addr]
 }
 
+// store word to data region, prevent access to instructions
 func store(v uint32, addr uint16) {
 	if addr < datastart {
 		Fatalf("SIGSEGV: pc%08X: store %08X (<%08X)", pc, addr, datastart)
@@ -110,6 +112,7 @@ func store(v uint32, addr uint16) {
 	mem[addr] = v
 }
 
+// load instruction, prevent executing data region
 func fetch(addr uint16) uint32 {
 	if addr >= datastart {
 		Fatalf("SIGSEGV: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
