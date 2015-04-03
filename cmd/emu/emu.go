@@ -5,10 +5,10 @@ coffee-cpu emulator. Usage:
 package main
 
 import (
+	. "../../isa"
 	"bufio"
 	"flag"
 	"fmt"
-	. "github.com/barnex/coffee-cpu/isa"
 	"io"
 	"log"
 	"os"

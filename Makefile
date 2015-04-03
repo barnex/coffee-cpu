@@ -1,2 +1,3 @@
 all:
-	go install github.com/barnex/coffee-cpu/cmd/...
+	go build -o ass cmd/ass/*.go 
+	go build -o emu cmd/emu/*.go 
