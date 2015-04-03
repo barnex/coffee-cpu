@@ -1,3 +1,4 @@
-JMPZ 	R1 	12345
-LOAD 	R2 	36547
-STORE 	R1     4546 // bla bla // bla bla
+LOADLI  R1 1
+ADD 	R2 R2 R1
+STORE 	R2 0xFFFF // write to display
+JMPZ 	R0  -2 
