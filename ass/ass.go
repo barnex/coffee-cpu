@@ -23,7 +23,7 @@ const (
 	STORE  = 0x2
 	LOADLI = 0x3
 	LOADHI = 0x4
-	JUMPZ  = 0x5
+	JMPZ   = 0x5
 	// Register-Register-Register
 	FIRST_RRR = MOV // not an opcode, marks beginning of RRR opcodes
 	MOV       = 0x6
@@ -47,7 +47,7 @@ var opcodes = map[string]uint32{
 	"STORE":  STORE,
 	"LOADLI": LOADLI,
 	"LOADHI": LOADHI,
-	"JUMPZ":  JUMPZ,
+	"JMPZ":   JMPZ,
 	"MOV":    MOV,
 	"AND":    AND,
 	"OR":     OR,
@@ -93,7 +93,7 @@ func Assemble(in io.Reader) {
 
 		if IsRegAddr(opc) {
 			CheckOps(words, 2)
-			bits = opc<<24 | Reg(0, words)<<16 | Addr(words)
+			bits = opc<<24 | Reg(0, words)<<16 | uint32(Addr(words))
 		}
 
 		if IsRegRegReg(opc) {
@@ -122,16 +122,16 @@ func Reg(i int, words []string) uint32 {
 	return uint32(rN)
 }
 
-func Addr(words []string) uint32 {
+func Addr(words []string) uint16 {
 	a := words[2]
-	addr, err := strconv.Atoi(a)
+	addr, err := strconv.ParseInt(a, 0, 32)
 	if err != nil {
-		Err("malformed number:", a)
+		Err("malformed number:", a, err)
 	}
 	if addr > MAXINT {
 		Err("too big:", a)
 	}
-	return uint32(addr)
+	return uint16(addr)
 }
 
 func CheckOps(words []string, nOps int) {
