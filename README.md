@@ -40,7 +40,7 @@ ADD    RA RB RC : integer add: RC = RA + RB
   * memory-mapped peripherals:
 ```
 0xFFFF : 16-bit register displayed on 7-segment LED display
-`` 
+```
 
 
 ##example program
