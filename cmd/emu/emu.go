@@ -17,19 +17,20 @@ import (
 )
 
 var (
-	flagTrace = flag.Bool("trace", true, "trace output")
+	flagTrace = flag.Bool("trace", false, "trace execution")
 )
 
 var (
-	pc   uint16           // program counter
-	reg  [NREG]uint32     // registers
-	mem  [MEMWORDS]uint32 // memory
-	disp uint32           // data register for display peripheral
+	pc        uint16           // program counter
+	reg       [NREG]uint32     // registers
+	mem       [MEMWORDS]uint32 // memory
+	datastart uint16           // memory address of first writable data word (end of instructions)
+	disp      uint32           // data register for display peripheral
 )
 
 func Run() {
 	for {
-		instr := mem[pc]
+		instr := fetch(pc)
 
 		op := uint8((instr & 0xFF000000) >> 24)
 		r1 := uint8((instr & 0x00FF0000) >> 16)
@@ -42,39 +43,37 @@ func Run() {
 			default:
 				debug(pc, op, instr)
 			case IsRegAddr(op):
-				debug(pc, op, r1, addr)
+				PrintRA(pc, op, r1, addr)
 			case IsReg2(op):
-				debug(pc, op, r1, r2)
+				PrintR2(pc, op, r1, r2)
 			case IsReg3(op):
-				debug(pc, op, r1, r2, r3)
+				PrintR3(pc, op, r1, r2, r3)
 			}
 		}
 
-		pc++
 		switch op {
 		default:
 			Fatal("SIGILL opcode=", op)
 		case NOP: // nop
 		case LOAD:
-			reg[r1] = mem[addr]
+			reg[r1] = load(addr)
 		case STORE:
 			if addr == PERI_DISPLAY {
 				display(reg[r1])
 			} else {
-				mem[addr] = reg[r1]
+				store(reg[r1], addr)
 			}
 		case LOADLI:
-			v := mem[addr]
+			v := reg[r1]
 			v = (v & 0xFFFF0000) | uint32(addr)
-			mem[addr] = v
+			reg[r1] = v
 		case LOADHI:
-			v := mem[addr]
+			v := reg[r1]
 			v = (v & 0x0000FFFF) | (uint32(addr) << 16)
-			mem[addr] = v
+			reg[r1] = v
 		case JMPZ:
 			if reg[r1] == 0 {
-				pc--
-				pc += addr
+				pc += addr - 1
 			}
 		case MOV:
 			reg[r2] = reg[r1]
@@ -87,17 +86,67 @@ func Run() {
 		case ADD:
 			reg[r3] = reg[r1] + reg[r2]
 		}
+
+		pc++
 	}
 }
 
+func load(addr uint16) uint32 {
+	if addr < datastart {
+		Fatalf("SIGSEGV: pc%08X: load %08X (<%08X)", pc, addr, datastart)
+	}
+	return mem[addr]
+}
+
+func store(v uint32, addr uint16) {
+	if addr < datastart {
+		Fatalf("SIGSEGV: pc%08X: store %08X (<%08X)", pc, addr, datastart)
+	}
+	mem[addr] = v
+}
+
+func fetch(addr uint16) uint32 {
+	if addr >= datastart {
+		Fatalf("SIGSEGV: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
+	}
+	return mem[addr]
+}
+
 func debug(pc uint16, op uint8, args ...interface{}) {
-	fmt.Fprint(os.Stderr, pc, OpStr(op))
-	fmt.Fprintln(os.Stderr, args...)
+	fmt.Fprintf(os.Stdout, "(%08X):% 8s ", pc, OpStr(op))
+	for _, a := range args {
+		switch a := a.(type) {
+		default:
+			fmt.Fprint(os.Stdout, " ", a)
+		case uint8:
+			fmt.Fprint(os.Stdout, " R", a)
+		case uint16:
+			fmt.Fprintf(os.Stdout, " %08X", a)
+		}
+	}
+	fmt.Fprintln(os.Stdout)
+}
+
+func Fatalf(f string, msg ...interface{}) {
+	fmt.Printf(f, msg...)
+	os.Exit(2)
+}
+
+func PrintRA(pc uint16, op uint8, r1 uint8, a uint16) {
+	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) %08X\n", pc, mem[pc], OpStr(op), r1, reg[r1], a)
+}
+
+func PrintR2(pc uint16, op uint8, r1, r2 uint8) {
+	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) R%d\n", pc, mem[pc], OpStr(op), r1, reg[r1], r2)
+}
+
+func PrintR3(pc uint16, op uint8, r1, r2, r3 uint8) {
+	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) R%d(=%08X) R%d\n", pc, mem[pc], OpStr(op), r1, reg[r1], r2, reg[r2], r3)
 }
 
 func display(v uint32) {
 	disp = v
-	fmt.Printf("PC%06d: %08X\n", pc-1, v)
+	fmt.Printf("%08X\n", v)
 }
 
 func main() {
@@ -115,6 +164,7 @@ func main() {
 		mem[pc] = v
 		pc++
 	}
+	datastart = uint16(pc)
 
 	Run()
 }
