@@ -20,6 +20,7 @@ var (
 	flagTrace = flag.Bool("trace", false, "trace execution")
 )
 
+// Machine state
 var (
 	pc        uint16           // program counter
 	reg       [NREG]uint32     // registers
@@ -30,14 +31,17 @@ var (
 
 func Run() {
 	for {
+		// fetch
 		instr := fetch(pc)
 
+		// decode
 		op := uint8((instr & 0xFF000000) >> 24)
 		r1 := uint8((instr & 0x00FF0000) >> 16)
 		r2 := uint8((instr & 0x0000FF00) >> 8)
 		r3 := uint8((instr & 0x000000FF))
 		addr := uint16(instr & 0x0000FFFF)
 
+		// debug
 		if *flagTrace {
 			switch {
 			default:
@@ -51,9 +55,10 @@ func Run() {
 			}
 		}
 
+		// execute
 		switch op {
 		default:
-			Fatal("SIGILL opcode=", op)
+			Fatalf("SIGILL pc:%08X opcode:%d\n", pc, op)
 		case NOP: // nop
 		case LOAD:
 			reg[r1] = load(addr)
