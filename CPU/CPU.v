@@ -51,12 +51,13 @@ always @(posedge clk) begin
     if( !nreset ) begin
 	state <= `FETCH;
 	pc <= 16'h0000;
+	address <= 16'h0000;
+	wren <= 1'b0;
 	status <= 8'hA0;
     end else begin
     case(state)
 	`FETCH: begin
 	    status <= 8'h00;
-	    pc <= pc + 1;
 	    command <= q;
 	    state <= `DECODE;
 	end
@@ -97,6 +98,8 @@ always @(posedge clk) begin
 		    r[r3] <= r[r1] + r[r2];
 		end
 	    endcase
+	    if( op != `JUMPZ )
+		pc <= pc + 1;
 	    state <= `EXECUTE;
 	end
 	`EXECUTE: begin

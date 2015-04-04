@@ -8,20 +8,22 @@ module COFFEE(input CLOCK_50,
     output [3:0]VGA_R, output [3:0]VGA_G, output [3:1]VGA_B, output VGA_VS, output VGA_HS
 );
 
+reg [26:0] prescaler;
+
 wire [15:0]address;
 wire [11:0]charAddress;
 wire [7:0] charQ;
 wire [31:0]data;
 wire [31:0]q;
 wire [7:0]status;
-wire clock;
+reg clock;
 wire wren;
 wire wrenCharRam;
 wire vgaClk;
 wire vgaSig;
 
 assign LEDG[7:0] = status;
-assign clock = CLOCK_50;
+
 assign wrenCharRam = (address[15:12] == 4'hE);
 assign VGA_R = {vgaSig, vgaSig, vgaSig, vgaSig};
 assign VGA_G = {vgaSig, vgaSig, vgaSig, vgaSig};
@@ -37,6 +39,13 @@ segdriver hex0(Digit0, HEX0_D);
 segdriver hex1(Digit1, HEX1_D);
 segdriver hex2(Digit2, HEX2_D);
 segdriver hex3(Digit3, HEX3_D);
+always @(posedge CLOCK_50) begin
+    if(prescaler == 2500000) begin
+	prescaler <= 0;
+	clock <= ~clock;
+    end else
+	prescaler <= prescaler + 1;
+end
 
 always @(negedge clock) begin
     if( (address == 16'hFFFF) & wren ) begin
