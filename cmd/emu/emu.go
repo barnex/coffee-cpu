@@ -5,6 +5,7 @@ coffee-cpu emulator. Usage:
 package main
 
 import (
+	"../../ihex"
 	. "../../isa"
 	"bufio"
 	"flag"
@@ -12,8 +13,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -167,28 +166,25 @@ func main() {
 	defer f.Close()
 	in := bufio.NewReader(f)
 
-	pc := 0
-	for v, ok := ParseLine(in); ok; v, ok = ParseLine(in) {
-		mem[pc] = v
-		pc++
+	for addr, v, ok := ParseLine(in); ok; addr, v, ok = ParseLine(in) {
+		mem[addr] = v
+		if addr >= datastart {
+			datastart = addr + 1
+		}
 	}
-	datastart = uint16(pc)
 
 	Run()
 }
 
 // Parses a line of ihex.
 // ok=false when EOF is reached.
-func ParseLine(in *bufio.Reader) (instruction uint32, ok bool) {
-	line, err := in.ReadString('\n')
+func ParseLine(in *bufio.Reader) (addr uint16, instruction uint32, ok bool) {
+	addr, instr, err := ihex.ReadUint32(in)
 	if err == io.EOF {
-		return 0, false
+		return 0, 0, false
 	}
 	Check(err)
-	line = strings.Trim(line, ",\n\r")
-	v, err := strconv.ParseInt(line, 0, 64)
-	Check(err)
-	return uint32(v), true
+	return addr, instr, true
 }
 
 func Fatal(msg ...interface{}) {

@@ -22,3 +22,34 @@ func WriteUint32(out io.Writer, addr uint16, x uint32) {
 
 	fmt.Fprintf(out, ":04%04X00%08X%02X\n", addr, x, c)
 }
+
+func ReadUint32(in io.Reader) (addr uint16, x uint32, err error) {
+	var prefix string
+	_, err = fmt.Fscanf(in, "%3s", &prefix)
+	if err != nil {
+		return
+	}
+	if prefix != ":04" {
+		return 0, 0, fmt.Errorf("malformed ihex record, starts with %v", prefix)
+	}
+	_, err = fmt.Fscanf(in, "%04X", &addr)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fscanf(in, "%2s", &prefix)
+	if err != nil {
+		return
+	}
+	if prefix != "00" {
+		return 0, 0, fmt.Errorf("bad data type in ihex record: %v", prefix)
+	}
+	_, err = fmt.Fscanf(in, "%08X", &x)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fscanf(in, "%s\n", &prefix)
+	if err != nil {
+		return 0, 0, err
+	}
+	return
+}
