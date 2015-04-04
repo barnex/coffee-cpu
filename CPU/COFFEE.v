@@ -4,8 +4,8 @@ module COFFEE(input CLOCK_50,
     output [6:0]HEX1_D,
     output [6:0]HEX2_D,
     output [6:0]HEX3_D,
-    input [3:0]BUTTON,
-    output [3:0]VGA_G, output [3:0]VGA_R, output [3:0]VGA_B, output VGA_VS, output VGA_HS
+    input [2:0]BUTTON,
+    output [3:0]VGA_R, output [3:0]VGA_G, output [3:1]VGA_B, output VGA_VS, output VGA_HS
 );
 
 wire [15:0]address;
@@ -23,10 +23,9 @@ wire vgaSig;
 assign LEDG[7:0] = status;
 assign clock = CLOCK_50;
 assign wrenCharRam = (address[15:12] == 4'hE);
-assign VGA_G[3] = vgaSig;
-assign VGA_G[2] = vgaSig;
-assign VGA_G[1] = vgaSig;
-assign VGA_G[0] = vgaSig;
+assign VGA_R = {vgaSig, vgaSig, vgaSig, vgaSig};
+assign VGA_G = {vgaSig, vgaSig, vgaSig, vgaSig};
+assign VGA_B = {vgaSig, vgaSig, vgaSig};
 
 reg [3:0] Digit0;
 reg [3:0] Digit1;
