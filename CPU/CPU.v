@@ -1,4 +1,11 @@
-module CPU(output reg [31:0]data, input [31:0]q, output reg [15:0]address, output reg wren, input clk, output reg [7:0]status);
+module CPU(output reg [31:0]data, // Data is output on this bus
+    input [31:0]q,	    // Data is input on this bus
+    output reg [15:0]address, // Address for the RAM
+    output reg wren,	    // Enable write for the RAM
+    input clk,		    // What could this be? Do you have any idea? Seems irrelevant
+    output reg [7:0]status, // Status indicator of the CPU
+    input nreset	    // Reset, active low, pull high to run CPU	
+    );
 
 `define NOP    8'h0
 `define LOAD   8'h1
@@ -36,9 +43,19 @@ assign r2 = command[15:8];
 assign r3 = command[7:0];
 assign addrOp = command[15:0];
 
+initial begin
+    state <= `FETCH;
+end
+
 always @(posedge clk) begin
+    if( !nreset ) begin
+	state <= `FETCH;
+	pc <= 16'h0000;
+	status <= 8'hA0;
+    end else begin
     case(state)
 	`FETCH: begin
+	    status <= 8'h00;
 	    pc <= pc + 1;
 	    command <= q;
 	    state <= `DECODE;
@@ -96,6 +113,7 @@ always @(posedge clk) begin
 	    endcase
 	end
     endcase
+    end
 end
 
 endmodule
