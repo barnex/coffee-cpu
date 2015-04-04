@@ -1,10 +1,11 @@
 package main
 
 import (
+	"../../ihex"
+	. "../../isa"
 	"bufio"
 	"flag"
 	"fmt"
-	. "github.com/barnex/coffee-cpu/isa"
 	"io"
 	"log"
 	"os"
@@ -55,6 +56,7 @@ const COMMENT = "//"
 
 func Assemble(in io.Reader, out io.Writer) {
 	reader := bufio.NewReader(in)
+	var pc uint16
 	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
 		if len(words) == 0 {
 			continue
@@ -76,7 +78,9 @@ func Assemble(in io.Reader, out io.Writer) {
 			bits = uint32(opc)<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
 		}
 
-		fmt.Fprintf(out, "0x%08X,\n", bits)
+		ihex.WriteUint32(out, pc, bits)
+		pc++
+		//fmt.Fprintf(out, "0x%08X,\n", bits)
 	}
 }
 
