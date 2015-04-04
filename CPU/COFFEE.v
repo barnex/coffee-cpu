@@ -4,17 +4,29 @@ module COFFEE(input CLOCK_50,
     output [6:0]HEX1_D,
     output [6:0]HEX2_D,
     output [6:0]HEX3_D,
-    input [3:0]BUTTON);
+    input [3:0]BUTTON,
+    output [3:0]VGA_G, output [3:0]VGA_R, output [3:0]VGA_B, output VGA_VS, output VGA_HS
+);
 
 wire [15:0]address;
+wire [11:0]charAddress;
+wire [7:0] charQ;
 wire [31:0]data;
 wire [31:0]q;
 wire [7:0]status;
 wire clock;
 wire wren;
+wire wrenCharRam;
+wire vgaClk;
+wire vgaSig;
 
 assign LEDG[7:0] = status;
 assign clock = CLOCK_50;
+assign wrenCharRam = (address[15:12] == 4'hE);
+assign VGA_G[3] = vgaSig;
+assign VGA_G[2] = vgaSig;
+assign VGA_G[1] = vgaSig;
+assign VGA_G[0] = vgaSig;
 
 reg [3:0] Digit0;
 reg [3:0] Digit1;
@@ -41,12 +53,23 @@ always @(negedge clock) begin
     end
 end
 
+VGA_gen vga_out(vgaClk, charAddress, charQ, VGA_HS, VGA_VS, vgaSig);
+
 memory mem (
 	address[12:0],
 	!clock,
 	data,
 	wren,
 	q);
+
+char_ram ram(
+	data[7:0],
+	charAddress,
+	!vgaClk,
+	address[11:0],
+	!clock,
+	wrenCharRam,
+	charQ);
 
 CPU cpu(data, 
     q, 
@@ -55,5 +78,12 @@ CPU cpu(data,
     clock,
     status,
     nRst);
+
+masterpll mainPLL(
+	,
+	CLOCK_50,
+	,
+	vgaClk,
+	);
 
 endmodule
