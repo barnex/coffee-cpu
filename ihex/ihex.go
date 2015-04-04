@@ -11,7 +11,7 @@ import (
 
 func WriteUint32(out io.Writer, addr uint16, x uint32) {
 
-	var c uint8
+	var c uint8 = 0x04
 	c += uint8((addr & 0xFF00) >> 8)
 	c += uint8((addr & 0x00FF) >> 0)
 	c += uint8((x & 0xFF000000) >> 24)
@@ -20,7 +20,19 @@ func WriteUint32(out io.Writer, addr uint16, x uint32) {
 	c += uint8((x & 0x000000FF) >> 0)
 	c = -c
 
-	fmt.Fprintf(out, ":04%04X00%08X%02X\n", addr, x, c)
+	_, err := fmt.Fprintf(out, ":04%04X00%08X%02X\n", addr, x, c)
+	Check(err)
+}
+
+func WriteEOF(out io.Writer) {
+	_, err := fmt.Fprintln(out, ":00000001FF")
+	Check(err)
+}
+
+func Check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func ReadUint32(in io.Reader) (addr uint16, x uint32, err error) {
@@ -28,6 +40,9 @@ func ReadUint32(in io.Reader) (addr uint16, x uint32, err error) {
 	_, err = fmt.Fscanf(in, "%3s", &prefix)
 	if err != nil {
 		return
+	}
+	if prefix == ":00" {
+		return 0, 0, io.EOF
 	}
 	if prefix != ":04" {
 		return 0, 0, fmt.Errorf("malformed ihex record, starts with %v", prefix)

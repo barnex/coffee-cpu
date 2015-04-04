@@ -82,6 +82,7 @@ func Assemble(in io.Reader, out io.Writer) {
 		pc++
 		//fmt.Fprintf(out, "0x%08X,\n", bits)
 	}
+	ihex.WriteEOF(out)
 }
 
 func Reg(i int, words []string) uint32 {
