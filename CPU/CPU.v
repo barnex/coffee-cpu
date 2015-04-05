@@ -20,15 +20,18 @@ module CPU(output reg [31:0]data, // Data is output on this bus
 `define XOR 8'h9
 `define ADD 8'hA
 
-`define FETCH	8'h0
-`define DECODE	8'h1
-`define EXECUTE	8'h2
+`define LEVEL1	8'h0
+`define LEVEL2	8'h1
+`define LEVEL3	8'h2
+`define PREFETCH_LEVEL	8'h3
 
 
 reg [15:0] pc;
 reg [31:0]r[7:0];
-reg [31:0] command;
+wire [31:0]command;
+reg [31:0]hCommand;
 
+reg hSelect;
 reg [7:0] state;
 
 wire [7:0]op;
@@ -37,38 +40,39 @@ wire [7:0]r2;
 wire [7:0]r3;
 wire [15:0]addrOp;
 
+assign command = q;
 assign op = command[31:24];
 assign r1 = command[23:16];
 assign r2 = command[15:8];
 assign r3 = command[7:0];
 assign addrOp = command[15:0];
 
-initial begin
-    state <= `FETCH;
-end
+assign hOp = hCommand[31:24];
+assign hR1 = hCommand[23:16];
+assign hR2 = hCommand[15:8];
+assign hR3 = hCommand[7:0];
+assign hAddrOp = hCommand[15:0];
 
 always @(posedge clk) begin
     if( !nreset ) begin
-	state <= `FETCH;
-	pc <= 16'h0000;
+	state <= `LEVEL1;
+	pc <= 16'hFFFF;
 	address <= 16'h0000;
 	wren <= 1'b0;
 	status <= 8'hA0;
+	hSelect <= 1'b0;
     end else begin
     case(state)
-	`FETCH: begin
+	`LEVEL1: begin
+	    // Let know that the CPU is running as normal
 	    status <= 8'h00;
-	    command <= q;
-	    state <= `DECODE;
-	end
-	`DECODE: begin
+	    hSelect <= 1'b0;
+	    // Decode and process the current command
 	    case (op)
 		`LOAD: begin
-		    address <= addrOp;
 		    wren <= 1'b0;
 		end
 		`STORE: begin
-		    address <= addrOp;
 		    wren <= 1'b1;
 		    data <= r[r1];
 		end
@@ -80,10 +84,6 @@ always @(posedge clk) begin
 		end
 		`LOADHI: begin 
 		    r[r1] <= {addrOp, r[r1][15:0]};
-		end
-		`JUMPZ: begin
-		    if( r[r1] == 8'h0 )
-			pc <= pc + addrOp;
 		end
 		`AND: begin
 		    r[r3] <= r[r1] & r[r2];
@@ -98,22 +98,40 @@ always @(posedge clk) begin
 		    r[r3] <= r[r1] + r[r2];
 		end
 	    endcase
-	    if( op != `JUMPZ )
-		pc <= pc + 1;
-	    state <= `EXECUTE;
-	end
-	`EXECUTE: begin
-	    case(op)
-		`LOAD: begin
-		    state <= `FETCH;
-		    r[r1] <= q;
+	    // If we are dealing with a load/store operation, alter the
+	    // address to the RAM
+	    if( (op == `LOAD) || (op == `STORE) ) begin
+		hCommand <= q;
+		address <= addrOp;
+		state <= `LEVEL2;
+	    // If we are dealing with a JUMPZ operation, alter the address
+	    // with the correct jump value
+	    end else if( op == `JUMPZ ) begin
+		if( r[r1] == 8'h0 ) begin
+		    pc <= pc + addrOp;
+		    address <= address + addrOp;
+		end else begin
+		    pc <= pc + 1;
+		    address <= pc + 2;
 		end
-		default: begin
-		    address <= pc;
-		    wren <= 1'b0;
-		    state <= `FETCH;
+	    end else begin
+		pc <= pc + 1;
+		address <= pc + 2;
+	    end
+	end
+	`LEVEL2: begin
+	    case(hOp)
+		// If we were dealing with a LOAD LEVEL2 operation, store the
+		// result
+		`LOAD: begin
+		    r[hR1] <= q;
 		end
 	    endcase
+	    // Increase the program counter and address as usual and proceed to
+	    pc <= pc + 1;
+	    address <= pc + 2;
+	    wren <= 1'b0;
+	    state <= `LEVEL1;
 	end
     endcase
     end

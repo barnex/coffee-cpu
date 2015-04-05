@@ -17,6 +17,8 @@ wire [31:0]data;
 wire [31:0]q;
 wire [7:0]status;
 reg clock;
+//wire clock;
+//assign clock = CLOCK_50;
 wire wren;
 wire wrenCharRam;
 wire vgaClk;
@@ -40,7 +42,7 @@ segdriver hex1(Digit1, HEX1_D);
 segdriver hex2(Digit2, HEX2_D);
 segdriver hex3(Digit3, HEX3_D);
 always @(posedge CLOCK_50) begin
-    if(prescaler == 2500000) begin
+    if(prescaler == 3) begin
 	prescaler <= 0;
 	clock <= ~clock;
     end else
