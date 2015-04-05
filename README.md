@@ -76,3 +76,4 @@ output of ``emu -trace``:
 ```
 ...
 
+Watch it running on FPGA: https://youtu.be/CDd83oF9Tog

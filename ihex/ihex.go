@@ -1,6 +1,7 @@
 /*
- Package ihex supports reading/writing Intel's HEX format as specified by:
+ Package ihex supports reading/writing a small subset of Intel's HEX format as specified by:
  	http://en.wikipedia.org/wiki/Intel_HEX
+ We only support data records and 32 bit data fields.
 */
 package ihex
 
