@@ -54,12 +54,17 @@ func Assemble(in io.Reader, out io.Writer) {
 
 		var bits uint32
 
-		if IsRegAddr(opc) {
+		switch {
+		default:
+			panic(words[0])
+		case opc == NOP:
+			if len(words) > 1 {
+				Err("unexpected arguments")
+			}
+		case IsRegAddr(opc):
 			CheckOps(words, 2)
 			bits = uint32(opc)<<24 | Reg(0, words)<<16 | uint32(Addr(words))
-		}
-
-		if IsReg3(opc) {
+		case IsReg3(opc):
 			CheckOps(words, 3)
 			bits = uint32(opc)<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
 		}
@@ -141,6 +146,6 @@ func assemble(words []string) {
 
 func Check(err error) {
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }

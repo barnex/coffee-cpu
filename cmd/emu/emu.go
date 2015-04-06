@@ -23,6 +23,7 @@ var (
 var (
 	pc        uint16           // program counter
 	reg       [NREG]uint32     // registers
+	carry     bool             // carry flag
 	mem       [MEMWORDS]uint32 // memory
 	datastart uint16           // memory address of first writable data word (end of instructions)
 	disp      uint32           // data register for display peripheral
@@ -44,7 +45,7 @@ func Run() {
 		if *flagTrace {
 			switch {
 			default:
-				debug(pc, op, instr)
+				fmt.Printf("(%08X:%08X):% 8s %06X\n", pc, mem[pc], OpStr(op), uint32(op)&0x00FFFFFF)
 			case IsRegAddr(op):
 				PrintRA(pc, op, r1, addr)
 			case IsReg2(op):
@@ -60,8 +61,12 @@ func Run() {
 			Fatalf("SIGILL pc:%08X opcode:%d\n", pc, op)
 		case NOP: // nop
 		case LOAD:
-			reg[r1] = load(addr)
+			reg[r3] = mem[reg[r1]+reg[r2]]
 		case STORE:
+			mem[reg[r1]+reg[r2]] = reg[r3]
+		case LOADI:
+			reg[r1] = load(addr)
+		case STORI:
 			if addr == PERI_DISPLAY {
 				display(reg[r1])
 			} else {
@@ -75,11 +80,29 @@ func Run() {
 			v := reg[r1]
 			v = (v & 0x0000FFFF) | (uint32(addr) << 16)
 			reg[r1] = v
+		case LOADLISE:
+			var sign uint32
+			if (addr & 0x8000) != 0 {
+				sign = 0xFFFF0000
+			}
+			reg[r1] = sign | uint32(addr)
 		case JUMPZ:
 			if reg[r1] == 0 {
 				pc += addr - 1
 			}
-		case MOV:
+		case JUMPNZ:
+			if reg[r1] != 0 {
+				pc += addr - 1
+			}
+		case JUMPLT:
+			if reg[r1] < 0 {
+				pc += addr - 1
+			}
+		case JUMPGTE:
+			if reg[r1] >= 0 {
+				pc += addr - 1
+			}
+		case MOV: // deprecated
 			reg[r2] = reg[r1]
 		case AND:
 			reg[r3] = reg[r1] & reg[r2]
@@ -88,7 +111,29 @@ func Run() {
 		case XOR:
 			reg[r3] = reg[r1] ^ reg[r2]
 		case ADD:
-			reg[r3] = reg[r1] + reg[r2]
+			sum := uint64(reg[r1]) + uint64(reg[r2])
+			carry = (sum > 0xFFFFFFFF)
+			reg[r3] = uint32(sum)
+		case ADDC:
+			var C uint64
+			if carry {
+				C = 1
+			}
+			sum := uint64(reg[r1]) + uint64(reg[r2]) + C
+			carry = (sum > 0xFFFFFFFF)
+			reg[r3] = uint32(sum)
+		case SUB:
+			reg[r3] = reg[r1] - reg[r2]
+		case MUL:
+			prod := uint64(reg[r1]) * uint64(reg[r2])
+			reg[r3] = uint32(prod & 0x00000000FFFFFFFF)
+			reg[(r3+1)%MAXREG] = uint32((prod & 0xFFFFFFFF00000000) >> 32)
+		case DIV:
+			reg[r3] = reg[r1] / reg[r2]
+			reg[(r3+1)%MAXREG] = reg[r1] % reg[r2]
+		case SDIV:
+			reg[r3] = uint32(int32(reg[r1]) / int32(reg[r2]))
+			reg[(r3+1)%MAXREG] = uint32(int32(reg[r1]) % int32(reg[r2]))
 		}
 
 		pc++

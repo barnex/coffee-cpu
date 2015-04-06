@@ -1,2 +1,2 @@
 all:
-	go build *.go
+	go build -o ../../ass *.go
