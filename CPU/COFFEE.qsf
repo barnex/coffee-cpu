@@ -645,17 +645,6 @@ set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[31] -t
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[32] -to "CPU:cpu|q[9]" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_SEGMENT_SIZE=128" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_SAMPLE_DEPTH=128" -section_id auto_signaltap_0
-set_global_assignment -name VERILOG_FILE MMU.v
-set_global_assignment -name VERILOG_FILE VGA_gen.v
-set_global_assignment -name VHDL_FILE font_rom.vhd
-set_global_assignment -name VERILOG_FILE segdriver.v
-set_global_assignment -name VERILOG_FILE COFFEE.v
-set_global_assignment -name VERILOG_FILE CPU.v
-set_global_assignment -name QIP_FILE memory.qip
-set_global_assignment -name SOURCE_FILE db/COFFEE.cmp.rdb
-set_global_assignment -name SIGNALTAP_FILE FirstTest.stp
-set_global_assignment -name QIP_FILE char_ram.qip
-set_global_assignment -name QIP_FILE masterpll.qip
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[33] -to "CPU:cpu|stall" -section_id auto_signaltap_0
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[34] -to "CPU:cpu|wren" -section_id auto_signaltap_0
 set_instance_assignment -name POST_FIT_CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[35] -to "CPU:cpu|address[0]" -section_id auto_signaltap_0
@@ -818,5 +807,17 @@ set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_INVERSION_MASK=00
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_INVERSION_MASK_LENGTH=354" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_LOWORD=31999" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_HIWORD=15604" -section_id auto_signaltap_0
-set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
+set_global_assignment -name VERILOG_FILE MMU.v
+set_global_assignment -name VERILOG_FILE segdriver.v
+set_global_assignment -name VERILOG_FILE COFFEE.v
+set_global_assignment -name VERILOG_FILE CPU.v
+set_global_assignment -name QIP_FILE memory.qip
+set_global_assignment -name SOURCE_FILE db/COFFEE.cmp.rdb
+set_global_assignment -name SIGNALTAP_FILE FirstTest.stp
+set_global_assignment -name QIP_FILE masterpll.qip
+set_global_assignment -name QIP_FILE uDivOp.qip
+set_global_assignment -name QIP_FILE sDivOp.qip
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name SLD_FILE db/FirstTest_auto_stripped.stp
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
