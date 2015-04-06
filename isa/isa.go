@@ -12,22 +12,27 @@ const (
 
 // Opcodes
 const (
-	NOP    = 0x0
-	LOAD   = 0x1
-	STORE  = 0x2
-	LOADLI = 0x3
-	LOADHI = 0x4
-	JMPZ   = 0x5
-	MOV    = 0x6
-	AND    = 0x7
-	OR     = 0x8
-	XOR    = 0x9
-	ADD    = 0xA
-)
-
-const (
-	FIRST_R2 = MOV // first opcode with 2 register arguments
-	FIRST_R3 = AND // first opcode with 3 register arguments
+	NOP      = 0x00 // NOP                : no-op
+	LOAD     = 0x01 // LOAD     Ra Rb Rc  : Rc = mem[Ra+Rb]
+	STORE    = 0x02 // STORE    Ra Rb Rc  : mem[Ra+Rb] = Rc
+	LOADI    = 0x03 // LOADI    Ra addr   : Ra = mem[addr]
+	STORI    = 0x04 // STORE    Ra addr   : mem[addr] = Ra
+	LOADLI   = 0x05 // LOADLI   Ra VALUE  : load VALUE (16 bit) into the lower half of register RA
+	LOADHI   = 0x06 // LOADHI   Rb VALUE  : load VALUE (16 bit) into the upper half of register RA
+	LOADLISE = 0x07 // LOADLISE Rb VALUE  : load VALUE into the lower half of Ra, sign extend to upper half
+	JUMPZ    = 0x08 // JMPZ     Ra DELTA  : if RA holds zero, make a relative jump of DELTA instructions
+	JUMPNZ   = 0x09 // JMPNZ    Ra DELTA  : jump if Ra holds nonzero
+	JUMPLT   = 0x0A // JMPLT    Ra DELTA  : jump if Ra holds negative number
+	JUMPGTE  = 0x0B // JMPGTE   Ra DELTA  : jump if Ra holds number >= 0
+	MOV      = 0x0C // MOV      Ra Rb     : copy RA into RB  //
+	AND      = 0x0D // AND      Ra Rb Rc  : bitwise and: Rc = Ra & Rb
+	OR       = 0x0E // OR       Ra Rb Rc  : bitwise or : Rc = Ra | Rb
+	XOR      = 0x0F // XOR      Ra Rb Rc  : bitwise xor: Rc = Ra ^ Rb
+	ADD      = 0x10 // ADD      Ra Rb Rc  : integer add: Rc = Ra + Rb
+	SUB      = 0x11 // SUB      Ra Rb Rc  : Rc = Ra - Rb
+	MUL      = 0x12 // MUL      Ra Rb Rc  : Rc = (Ra*Rb)[31:0], R(c+1) = (Ra*Rb)[63:32]
+	DIV      = 0x13 // DIV      Ra Rb Rc  : unsigned division Rc = Ra/Rb, R(c+1) = Ra%Rb
+	SDIV     = 0x14 // SDIV     Ra Rb Rc  : signed division Rc = Ra/Rb, R(c+1) = Ra%Rb
 )
 
 // Machine properties
