@@ -10,6 +10,7 @@ Command ``ass`` assembles source files into ihex executables (@barnex):
 ```
 ass test.ss
 ```
+The assembler accepts assembly code conform the ISA (below) and ``#def``, ``#undef`` macros.
 
 ##emulator
 Command ``emu`` emulates ihex execution on a PC (@barnex). It features:
@@ -25,17 +26,28 @@ The coffee CPU currently has:
   * a 16 bit address space, addressing 13 bit memory space of 32-bit words, plus peripherals
   * this instruction set:
 ```
-NOP             : no-op
-LOAD   RA ADDR  : load from memory address ADDR into register RA
-STORE  RA ADDR  : store from register RA into memory address ADDR
-LOADLI RA VALUE : load VALUE (16 bit) into the lower half of register RA
-LOADHI RA VALUE : load VALUE (16 bit) into the upper half of register RA
-JMPZ   RA DELTA : if RA holds zero, make a relative jump of DELTA instructions
-MOV    RA RB    : copy RA into RB
-AND    RA RB RC : bitwise and: RC = RA & RB
-OR     RA RB RC : bitwise or : RC = RA | RB
-XOR    RA RB RC : bitwise xor: RC = RA ^ RB
-ADD    RA RB RC : integer add: RC = RA + RB
+NOP                : no-op
+LOAD     Ra Rb Rc  : Rc = mem[Ra+Rb]
+STORE    Ra Rb Rc  : mem[Ra+Rb] = Rc
+LOADI    Ra addr   : Ra = mem[addr]
+STORE    Ra addr   : mem[addr] = Ra
+LOADLI   Ra VALUE  : load VALUE (16 bit) into the lower half of register RA
+LOADHI   Rb VALUE  : load VALUE (16 bit) into the upper half of register RA
+LOADLISE Rb VALUE  : load VALUE into the lower half of Ra, sign extend to upper half
+JMPZ     Ra DELTA  : if RA holds zero, make a relative jump of DELTA instructions
+JMPNZ    Ra DELTA  : jump if Ra holds nonzero
+JMPLT    Ra DELTA  : jump if Ra holds negative number
+JMPGTE   Ra DELTA  : jump if Ra holds number >= 0
+MOV      Ra Rb     : copy RA into RB  // deprecate?
+AND      Ra Rb Rc  : bitwise and: Rc = Ra & Rb
+OR       Ra Rb Rc  : bitwise or : Rc = Ra | Rb
+XOR      Ra Rb Rc  : bitwise xor: Rc = Ra ^ Rb
+ADD      Ra Rb Rc  : integer add: Rc = Ra + Rb
+ADD      Ra Rb Rc  : add with carry
+SUB      Ra Rb Rc  : Rc = Ra - Rb
+MUL      Ra Rb Rc  : Rc = (Ra*Rb)[31:0], R(c+1) = (Ra*Rb)[63:32]
+DIV      Ra Rb Rc  : unsigned division Rc = Ra/Rb, R(c+1) = Ra%Rb
+SDIV     Ra Rb Rc  : signed division Rc = Ra/Rb, R(c+1) = Ra%Rb
 ```
   * memory-mapped peripherals:
 ```
@@ -48,11 +60,13 @@ ADD    RA RB RC : integer add: RC = RA + RB
 // This test program cycles the hex display
 // through all 16-bit values
 
-NOP               // just test a nop
-LOADLI  R1 1
-STORE 	R2 0xFFFF // write to display
-ADD 	R1 R2 R2
-JMPZ 	R0  -2 
+#def display 0xFFFF
+#def counter R2
+
+LOADLI  R1      1
+STORI	counter display 
+ADD 	R1      counter counter
+JUMPZ 	R0      -2 
 ```
 
 output of ``emu -trace``:
@@ -73,7 +87,7 @@ output of ``emu -trace``:
 (00000004:0500FFFE):    JMPZ R0(=00000000) 0000FFFE
 (00000002:0202FFFF):   STORE R2(=00000003) 0000FFFF
 00000003
-```
 ...
+```
 
 Watch it running on FPGA: https://youtu.be/CDd83oF9Tog
