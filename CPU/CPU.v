@@ -28,10 +28,11 @@ module CPU(output reg [31:0]data, // Data is output on this bus
 `define OR	    8'h0E
 `define XOR	    8'h0F
 `define ADD	    8'h10
-`define SUB	    8'h11
-`define MUL	    8'h12
-`define DIV	    8'h13
-`define SDIV	    8'h14
+`define ADDC	    8'h11
+`define SUB	    8'h12
+`define MUL	    8'h13
+`define DIV	    8'h14
+`define SDIV	    8'h15
 
 `define LEVEL1	8'h0
 `define LEVEL2	8'h1
@@ -58,6 +59,7 @@ wire [31:0] modulus;
 wire [31:0] squotient;
 wire [31:0] smodulus;
 wire [63:0] mulres;
+wire [32:0] addres;
 
 wire [7:0]hOp;
 wire [3:0] hR1, hR2, hR3;
@@ -91,6 +93,8 @@ sDivOp sdiv(
     );
 
 assign mulres = r[r1] * r[r2];
+
+assign addres = {1'b0, r[r1]} + {1'b0, r[r2]};
 
 always @(posedge clk) begin
     if( !nreset ) begin
@@ -143,7 +147,12 @@ always @(posedge clk) begin
 		    r[r3] <= r[r1] ^ r[r2];
 		end
 		`ADD: begin
-		    r[r3] <= r[r1] + r[r2];
+		    r[r3] <= addres[31:0];
+		    status[0] <= addres[32];
+		end
+		`ADDC: begin
+		    r[r3] <= addres[31:0] + status[0];
+		    status[0] <= addres[32];
 		end
 		`SUB: begin
 		    r[r3] <= r[r1] - r[r2];
