@@ -158,6 +158,9 @@ func store(v uint32, addr uint16) {
 
 // load instruction, prevent executing data region
 func fetch(addr uint16) uint32 {
+	if addr == datastart {
+		os.Exit(0)
+	}
 	if addr >= datastart {
 		Fatalf("SIGSEGV: control enters data region: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
 	}
@@ -198,8 +201,7 @@ func PrintR3(pc uint16, op uint8, r1, r2, r3 uint8) {
 
 func display(v uint32) {
 	disp = v
-	//fmt.Printf("%08X\n", v)
-	fmt.Printf("%v\n", v)
+	fmt.Printf("%08X (=%v unsigned, %v signed)\n", v, v, int32(v))
 }
 
 func main() {
