@@ -34,6 +34,8 @@ module CPU(output reg [31:0]data, // Data is output on this bus
 `define DIV	    8'h14
 `define SDIV	    8'h15
 
+`define READSTAT    8'h16
+
 `define LEVEL1	8'h0
 `define LEVEL2	8'h1
 `define LEVEL3	8'h2
@@ -169,6 +171,9 @@ always @(posedge clk) begin
 		    r[r3] <= squotient;
 		    r[r3+1] <= smodulus;
 		end    
+		`READSTAT: begin
+		    r[r1] <= status;
+		end
 	    endcase
 	    // If we are dealing with a load/store operation, alter the
 	    // address to the RAM
