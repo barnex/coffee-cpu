@@ -143,7 +143,7 @@ func Run() {
 // load word form data region, prevent access to instructions
 func load(addr uint16) uint32 {
 	if addr < datastart {
-		Fatalf("SIGSEGV: pc%08X: load %08X (<%08X)", pc, addr, datastart)
+		Fatalf("SIGSEGV: attempt to load code as data: pc%08X: load %08X (<%08X)", pc, addr, datastart)
 	}
 	return mem[addr]
 }
@@ -151,7 +151,7 @@ func load(addr uint16) uint32 {
 // store word to data region, prevent access to instructions
 func store(v uint32, addr uint16) {
 	if addr < datastart {
-		Fatalf("SIGSEGV: pc%08X: store %08X (<%08X)", pc, addr, datastart)
+		Fatalf("SIGSEGV: attempt to overwrite code: pc%08X: store %08X (<%08X)", pc, addr, datastart)
 	}
 	mem[addr] = v
 }
@@ -159,7 +159,7 @@ func store(v uint32, addr uint16) {
 // load instruction, prevent executing data region
 func fetch(addr uint16) uint32 {
 	if addr >= datastart {
-		Fatalf("SIGSEGV: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
+		Fatalf("SIGSEGV: control enters data region: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
 	}
 	return mem[addr]
 }
@@ -198,7 +198,8 @@ func PrintR3(pc uint16, op uint8, r1, r2, r3 uint8) {
 
 func display(v uint32) {
 	disp = v
-	fmt.Printf("%08X\n", v)
+	//fmt.Printf("%08X\n", v)
+	fmt.Printf("%v\n", v)
 }
 
 func main() {
