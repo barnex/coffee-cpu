@@ -18,9 +18,18 @@
 // R3: sum
 // R4: 1000
 
-LOADLI R1 3   
-LOADLI R4 1000
-   ADD R3 R2   R3  
-   ADD R2 R1   R2
-   CMP R2 
-JMPZ 
+
+#def display 0xFFFF
+#def $3      R1
+#def $1000   R2
+#def i       R3
+#def sum     R4
+#def cmp     R5
+LOADLI $3    3   
+LOADLI $1000 10
+
+ADD    i   $3    i
+SUB    i   $1000 cmp
+JUMPLT cmp -2
+STORI i display
+

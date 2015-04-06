@@ -95,11 +95,11 @@ func Run() {
 				pc += addr - 1
 			}
 		case JUMPLT:
-			if reg[r1] < 0 {
+			if int32(reg[r1]) < 0 {
 				pc += addr - 1
 			}
 		case JUMPGTE:
-			if reg[r1] >= 0 {
+			if int32(reg[r1]) >= 0 {
 				pc += addr - 1
 			}
 		case MOV: // deprecated
@@ -180,8 +180,8 @@ func debug(pc uint16, op uint8, args ...interface{}) {
 }
 
 func Fatalf(f string, msg ...interface{}) {
-	fmt.Printf(f, msg...)
-	os.Exit(2)
+	panic(fmt.Sprintf(f, msg...))
+	//os.Exit(2)
 }
 
 func PrintRA(pc uint16, op uint8, r1 uint8, a uint16) {
