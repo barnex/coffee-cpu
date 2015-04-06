@@ -4,7 +4,10 @@ module CPU(output reg [31:0]data, // Data is output on this bus
     output reg wren,	    // Enable write for the RAM
     input clk,		    // What could this be? Do you have any idea? Seems irrelevant
     output reg [7:0]status, // Status indicator of the CPU
-    input nreset	    // Reset, active low, pull high to run CPU	
+    input nreset,	    // Reset, active low, pull high to run CPU	
+    input stall,	    // Puts the CPU on hold 
+    input IRQ,		    // An interrupt service has been requested
+    input [7:0] IRQn	    // and this is the interrupt number
     );
 
 `define NOP    8'h0
@@ -40,6 +43,9 @@ wire [7:0]r2;
 wire [7:0]r3;
 wire [15:0]addrOp;
 
+wire [7:0]hOp, hR1, hR2, hR3;
+wire [15:0]hAddrOp;
+
 assign command = q;
 assign op = command[31:24];
 assign r1 = command[23:16];
@@ -61,7 +67,7 @@ always @(posedge clk) begin
 	wren <= 1'b0;
 	status <= 8'hA0;
 	hSelect <= 1'b0;
-    end else begin
+    end else if( !stall ) begin
     case(state)
 	`LEVEL1: begin
 	    // Let know that the CPU is running as normal
