@@ -175,7 +175,7 @@ always @(posedge clk) begin
 		state <= `LEVEL2;
 	    // If we are dealing with a JUMPZ operation, alter the address
 	    // with the correct jump value
-	    end else if( op > 4 && op < 9 ) begin
+	    end else if( op > (`JUMPZ - 1) && op < (`JUMPGTE + 1) ) begin
 		case(op)
 		    `JUMPZ: begin
 			if( r[r1] == 8'h0 ) begin
