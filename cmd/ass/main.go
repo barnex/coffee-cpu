@@ -38,20 +38,6 @@ func main() {
 	}
 }
 
-var opcodes = map[string]uint8{
-	"NOP":    NOP,
-	"LOAD":   LOAD,
-	"STORE":  STORE,
-	"LOADLI": LOADLI,
-	"LOADHI": LOADHI,
-	"JMPZ":   JMPZ,
-	"MOV":    MOV,
-	"AND":    AND,
-	"OR":     OR,
-	"XOR":    XOR,
-	"ADD":    ADD,
-}
-
 const COMMENT = "//"
 
 func Assemble(in io.Reader, out io.Writer) {
@@ -61,7 +47,7 @@ func Assemble(in io.Reader, out io.Writer) {
 		if len(words) == 0 {
 			continue
 		}
-		opc, ok := opcodes[words[0]]
+		opc, ok := Opcodes[words[0]]
 		if !ok {
 			Err("illegal instruction: " + words[0])
 		}

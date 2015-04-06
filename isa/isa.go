@@ -24,16 +24,32 @@ const (
 	JUMPNZ   = 0x09 // JMPNZ    Ra DELTA  : jump if Ra holds nonzero
 	JUMPLT   = 0x0A // JMPLT    Ra DELTA  : jump if Ra holds negative number
 	JUMPGTE  = 0x0B // JMPGTE   Ra DELTA  : jump if Ra holds number >= 0
-	MOV      = 0x0C // MOV      Ra Rb     : copy RA into RB  //
+	MOV      = 0x0C // MOV      Ra Rb     : copy RA into RB  // deprecate?
 	AND      = 0x0D // AND      Ra Rb Rc  : bitwise and: Rc = Ra & Rb
 	OR       = 0x0E // OR       Ra Rb Rc  : bitwise or : Rc = Ra | Rb
 	XOR      = 0x0F // XOR      Ra Rb Rc  : bitwise xor: Rc = Ra ^ Rb
 	ADD      = 0x10 // ADD      Ra Rb Rc  : integer add: Rc = Ra + Rb
-	SUB      = 0x11 // SUB      Ra Rb Rc  : Rc = Ra - Rb
-	MUL      = 0x12 // MUL      Ra Rb Rc  : Rc = (Ra*Rb)[31:0], R(c+1) = (Ra*Rb)[63:32]
-	DIV      = 0x13 // DIV      Ra Rb Rc  : unsigned division Rc = Ra/Rb, R(c+1) = Ra%Rb
-	SDIV     = 0x14 // SDIV     Ra Rb Rc  : signed division Rc = Ra/Rb, R(c+1) = Ra%Rb
+	ADDC     = 0x11 // ADD      Ra Rb Rc  : add with carry
+	SUB      = 0x12 // SUB      Ra Rb Rc  : Rc = Ra - Rb
+	MUL      = 0x13 // MUL      Ra Rb Rc  : Rc = (Ra*Rb)[31:0], R(c+1) = (Ra*Rb)[63:32]
+	DIV      = 0x14 // DIV      Ra Rb Rc  : unsigned division Rc = Ra/Rb, R(c+1) = Ra%Rb
+	SDIV     = 0x15 // SDIV     Ra Rb Rc  : signed division Rc = Ra/Rb, R(c+1) = Ra%Rb
 )
+
+// Does this opcode take a register + address operand?
+func IsRegAddr(opc uint8) bool {
+	return opc >= LOADI && opc <= JUMPGTE
+}
+
+// Does this opcode take a 2 register operands?
+func IsReg2(opc uint8) bool {
+	return opc == MOV
+}
+
+// Does this opcode take a 3 register operands?
+func IsReg3(opc uint8) bool {
+	return opc >= AND
+}
 
 // Machine properties
 const (
@@ -45,39 +61,44 @@ const (
 	PERI_DISPLAY = 0xFFFF
 )
 
-var opcodeStr = map[uint8]string{
-	NOP:    "NOP",
-	LOAD:   "LOAD",
-	STORE:  "STORE",
-	LOADLI: "LOADLI",
-	LOADHI: "LOADHI",
-	JMPZ:   "JMPZ",
-	MOV:    "MOV",
-	AND:    "AND",
-	OR:     "OR",
-	XOR:    "XOR",
-	ADD:    "ADD",
+var OpcodeStr = map[uint8]string{
+	NOP:      "NOP",
+	LOAD:     "LOAD",
+	STORE:    "STORE",
+	LOADI:    "LOADI",
+	STORI:    "STORI",
+	LOADLI:   "LOADLI",
+	LOADHI:   "LOADHI",
+	LOADLISE: "LOADLISE",
+	JUMPZ:    "JUMPZ",
+	JUMPNZ:   "JUMPNZ",
+	JUMPLT:   "JUMPLT",
+	JUMPGTE:  "JUMPGTE",
+	MOV:      "MOV",
+	AND:      "AND",
+	OR:       "OR",
+	XOR:      "XOR",
+	ADD:      "ADD",
+	ADDC:     "ADDC",
+	SUB:      "SUB",
+	MUL:      "MUL",
+	DIV:      "DIV",
+	SDIV:     "SDIV",
+}
+
+var Opcodes map[string]uint8
+
+func init() {
+	Opcodes = make(map[string]uint8)
+	for k, v := range OpcodeStr {
+		Opcodes[v] = k
+	}
 }
 
 func OpStr(opc uint8) string {
-	if s, ok := opcodeStr[opc]; ok {
+	if s, ok := OpcodeStr[opc]; ok {
 		return s
 	} else {
 		return fmt.Sprintf("ILLEGAL:%2X", opc)
 	}
-}
-
-// Does this opcode take a register + address operand?
-func IsRegAddr(opc uint8) bool {
-	return opc > NOP && opc < FIRST_R2
-}
-
-// Does this opcode take a 2 register operands?
-func IsReg2(opc uint8) bool {
-	return opc >= FIRST_R2 && opc < FIRST_R3
-}
-
-// Does this opcode take a 3 register operands?
-func IsReg3(opc uint8) bool {
-	return opc >= FIRST_R3
 }

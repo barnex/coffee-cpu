@@ -75,7 +75,7 @@ func Run() {
 			v := reg[r1]
 			v = (v & 0x0000FFFF) | (uint32(addr) << 16)
 			reg[r1] = v
-		case JMPZ:
+		case JUMPZ:
 			if reg[r1] == 0 {
 				pc += addr - 1
 			}
