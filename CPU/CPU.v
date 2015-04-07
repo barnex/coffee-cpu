@@ -43,7 +43,7 @@ module CPU(output reg [31:0]data, // Data is output on this bus
 
 
 reg [15:0] pc;
-reg [31:0]r[3:0];
+reg [31:0]r[7:0];
 wire [31:0]command;
 reg [31:0]hCommand;
 reg [15:0]hAddress;
@@ -80,6 +80,8 @@ assign hR2 = hCommand[11:8];
 assign hR3 = hCommand[3:0];
 assign hAddrOp = hCommand[15:0];
 
+integer i;
+
 uDivOp udiv(
     r[r1],
     r[r2],
@@ -106,6 +108,9 @@ always @(posedge clk) begin
 	wren <= 1'b0;
 	status <= 8'hA0;
 	hSelect <= 1'b0;
+	for(i = 0; i < 8; i = i+1) begin
+	    r[i] <= 32'h0;
+	end
     end else if( !stall ) begin
     case(state)
 	`LEVEL1: begin
@@ -119,6 +124,7 @@ always @(posedge clk) begin
 		end
 		`STORE: begin
 		    wren <= 1'b1;
+		    data <= r[r3];
 		end
 		`LOADI: begin
 		    wren <= 1'b0;
