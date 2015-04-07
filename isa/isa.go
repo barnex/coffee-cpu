@@ -5,14 +5,21 @@ import (
 	"fmt"
 )
 
+// Machine properties
 const (
-	MAXREG = 255
-	MAXINT = 1<<32 - 1
+	MEMBITS      = 1 << 13
+	MEMBYTES     = MEMBITS / 8
+	WORDBYTES    = 4
+	MEMWORDS     = MEMBYTES / WORDBYTES
+	NREG         = 256
+	MAXREG       = NREG - 1
+	PERI_DISPLAY = 0xFFFF
+	MAXINT       = 1<<32 - 1
 )
 
 // Opcodes
 const (
-	NOP      = 0x00 // NOP                : no-op
+	//NOP      = 0x00 // NOP                : no-op
 	LOAD     = 0x01 // LOAD     Ra Rb Rc  : Rc = mem[Ra+Rb]
 	STORE    = 0x02 // STORE    Ra Rb Rc  : mem[Ra+Rb] = Rc
 	LOADI    = 0x03 // LOADI    Ra addr   : Ra = mem[addr]
@@ -34,6 +41,7 @@ const (
 	MUL      = 0x13 // MUL      Ra Rb Rc  : Rc = (Ra*Rb)[31:0], R(c+1) = (Ra*Rb)[63:32]
 	DIV      = 0x14 // DIV      Ra Rb Rc  : unsigned division Rc = Ra/Rb, R(c+1) = Ra%Rb
 	SDIV     = 0x15 // SDIV     Ra Rb Rc  : signed division Rc = Ra/Rb, R(c+1) = Ra%Rb
+	HALT     = 0xFF // HALT               : halt execution
 )
 
 // Does this opcode take a register + address operand?
@@ -48,21 +56,11 @@ func IsReg2(opc uint8) bool {
 
 // Does this opcode take a 3 register operands?
 func IsReg3(opc uint8) bool {
-	return opc == LOAD || opc == STORE || opc >= AND
+	return opc == LOAD || opc == STORE || (opc >= AND && opc < HALT)
 }
 
-// Machine properties
-const (
-	MEMBITS      = 1 << 13
-	MEMBYTES     = MEMBITS / 8
-	WORDBYTES    = 4
-	MEMWORDS     = MEMBYTES / WORDBYTES
-	NREG         = 256
-	PERI_DISPLAY = 0xFFFF
-)
-
 var OpcodeStr = map[uint8]string{
-	NOP:      "NOP",
+	//NOP:      "NOP",
 	LOAD:     "LOAD",
 	STORE:    "STORE",
 	LOADI:    "LOADI",
@@ -84,6 +82,7 @@ var OpcodeStr = map[uint8]string{
 	MUL:      "MUL",
 	DIV:      "DIV",
 	SDIV:     "SDIV",
+	HALT:     "HALT",
 }
 
 var Opcodes map[string]uint8

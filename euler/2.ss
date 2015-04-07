@@ -13,11 +13,14 @@ LOADLI v1 1
 LOADLI v2 2
 
 #def max R3
-LOAD max $max
+LOADI max gl_max
 STORI max display
 
 #def sum R3
 
-#data $max 4000000
+HALT
+
+#label gl_max
+DATA 4000000
 
 

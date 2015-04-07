@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 var defs = make(map[string]string)
 
 func HandleMacro(words []string) {
@@ -10,6 +14,8 @@ func HandleMacro(words []string) {
 		handleDef(words[1:])
 	case "#undef":
 		handleUndef(words[1:])
+	case "#label":
+		handleLabel(words[1:])
 	}
 }
 
@@ -31,6 +37,13 @@ func handleUndef(args []string) {
 		}
 		delete(defs, k)
 	}
+}
+
+func handleLabel(args []string) {
+	if len(args) != 1 {
+		Err("#label needs 1 argument, have: ", args)
+	}
+	handleDef([]string{args[0], fmt.Sprint(pc)})
 }
 
 func transl(x string) string {

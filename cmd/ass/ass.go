@@ -13,44 +13,10 @@ import (
 
 const COMMENT = "//"
 
-var output []Instr
+var pc uint16
 
-type Instr interface {
-	Encode() uint32
-}
-
-type Data uint32
-
-func (d Data) Encode() uint32 { return uint32(d) }
-
-type R3 struct {
-	opc        uint8
-	r1, r2, r3 uint8
-}
-
-func (i R3) Encode() uint32 {
-	return uint32(i.opc)<<24 |
-		uint32(i.r1)<<16 |
-		uint32(i.r2)<<8 |
-		uint32(i.r3)
-}
-
-type RA struct {
-	opc   uint8
-	r     uint8
-	addr  uint16
-	label string
-}
-
-func (i RA) Encode() uint32 {
-	return uint32(i.opc)<<24 |
-		uint32(i.r)<<16 |
-		uint32(i.addr)
-}
-
-func Assemble(in io.Reader, out io.Writer) {
+func Preprocess(in io.Reader) {
 	reader := bufio.NewReader(in)
-	var pc uint16
 	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
 		if len(words) == 0 {
 			continue
@@ -60,32 +26,52 @@ func Assemble(in io.Reader, out io.Writer) {
 			HandleMacro(words)
 			continue
 		}
+		pc++
+	}
+}
 
-		opc, ok := Opcodes[words[0]]
-		if !ok {
-			Err("illegal instruction: " + words[0])
+func Assemble(in io.Reader, out io.Writer) {
+	reader := bufio.NewReader(in)
+	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
+		if len(words) == 0 {
+			continue
+		}
+
+		if strings.HasPrefix(words[0], "#") {
+			continue
 		}
 
 		var bits uint32
 
-		switch {
-		default:
-			panic(words[0])
-		case opc == NOP:
-			if len(words) > 1 {
-				Err("unexpected arguments")
-			}
-		case IsRegAddr(opc):
-			CheckOps(words, 2)
-			bits = uint32(opc)<<24 | Reg(0, words)<<16 | uint32(Addr(words))
-		case IsReg3(opc):
-			CheckOps(words, 3)
-			bits = uint32(opc)<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
-		}
+		if words[0] == "DATA" {
+			v, err := strconv.ParseInt(words[1], 0, 64)
+			Check(err)
+			bits = uint32(v)
+		} else {
 
+			opc, ok := Opcodes[words[0]]
+			if !ok {
+				Err("illegal instruction: " + words[0])
+			}
+
+			switch {
+			default:
+				panic(words[0])
+			case opc == HALT:
+				if len(words) > 1 {
+					Err("unexpected arguments")
+				}
+				bits = uint32(opc) << 24
+			case IsRegAddr(opc):
+				CheckOps(words, 2)
+				bits = uint32(opc)<<24 | Reg(0, words)<<16 | uint32(Addr(words))
+			case IsReg3(opc):
+				CheckOps(words, 3)
+				bits = uint32(opc)<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
+			}
+		}
 		ihex.WriteUint32(out, pc, bits)
 		pc++
-		//fmt.Fprintf(out, "0x%08X,\n", bits)
 	}
 	ihex.WriteEOF(out)
 }

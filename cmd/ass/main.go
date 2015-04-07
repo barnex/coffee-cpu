@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"flag"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -16,7 +18,7 @@ func main() {
 	log.SetFlags(0)
 	flag.Parse()
 	for _, fname := range flag.Args() {
-		f, err := os.Open(fname)
+		input, err := ioutil.ReadFile(fname)
 		Check(err)
 		filename = fname
 
@@ -24,9 +26,11 @@ func main() {
 		out, err := os.Create(outfname)
 		Check(err)
 
-		Assemble(f, out)
+		Preprocess(bytes.NewReader(input))
+		linenumber = 0
+		pc = 0
+		Assemble(bytes.NewReader(input), out)
 
-		f.Close()
 		out.Close()
 	}
 }
