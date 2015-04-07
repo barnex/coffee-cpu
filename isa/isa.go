@@ -48,7 +48,7 @@ func IsReg2(opc uint8) bool {
 
 // Does this opcode take a 3 register operands?
 func IsReg3(opc uint8) bool {
-	return opc >= AND
+	return opc == LOAD || opc == STORE || opc >= AND
 }
 
 // Machine properties
