@@ -3,10 +3,10 @@
 After drinking too much coffee, we built a CPU.
 
 ##CPU
-Directory CPU/ has a verilog implementation of the CPU (@mathiashelsen). It requires 3 FPGA cycles per CPU instruction.
+Directory CPU/ has a verilog implementation of the CPU, which works on an FPGA (@mathiashelsen). The CPU currently clocks at 25MHz and issues 1 instruction per cycle (2 cycles for LOAD/STORE). 
 
 ##assembler
-Command ``ass`` assembles source files into ihex executables (@barnex):
+Command ``ass`` assembles source files into ihex executables, which can be loaded into the FPGA memory (@barnex):
 ```
 ass test.ss
 ```
@@ -90,4 +90,4 @@ output of ``emu -trace``:
 ...
 ```
 
-Watch it running on FPGA: https://youtu.be/CDd83oF9Tog
+Watch this program running on FPGA: https://youtu.be/CDd83oF9Tog (downclocked to 1Hz for clarity).
