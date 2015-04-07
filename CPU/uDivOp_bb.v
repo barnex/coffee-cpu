@@ -48,7 +48,7 @@ endmodule
 // CNX file retrieval info
 // ============================================================
 // Retrieval info: PRIVATE: INTENDED_DEVICE_FAMILY STRING "Cyclone III"
-// Retrieval info: PRIVATE: PRIVATE_LPM_REMAINDERPOSITIVE STRING "TRUE"
+// Retrieval info: PRIVATE: PRIVATE_LPM_REMAINDERPOSITIVE STRING "FALSE"
 // Retrieval info: PRIVATE: PRIVATE_MAXIMIZE_SPEED NUMERIC "6"
 // Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "0"
 // Retrieval info: PRIVATE: USING_PIPELINE NUMERIC "0"
@@ -56,7 +56,7 @@ endmodule
 // Retrieval info: PRIVATE: new_diagram STRING "1"
 // Retrieval info: LIBRARY: lpm lpm.lpm_components.all
 // Retrieval info: CONSTANT: LPM_DREPRESENTATION STRING "UNSIGNED"
-// Retrieval info: CONSTANT: LPM_HINT STRING "MAXIMIZE_SPEED=6,LPM_REMAINDERPOSITIVE=TRUE"
+// Retrieval info: CONSTANT: LPM_HINT STRING "MAXIMIZE_SPEED=6,LPM_REMAINDERPOSITIVE=FALSE"
 // Retrieval info: CONSTANT: LPM_NREPRESENTATION STRING "UNSIGNED"
 // Retrieval info: CONSTANT: LPM_TYPE STRING "LPM_DIVIDE"
 // Retrieval info: CONSTANT: LPM_WIDTHD NUMERIC "32"

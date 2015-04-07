@@ -83,15 +83,15 @@ assign hAddrOp = hCommand[15:0];
 integer i;
 
 uDivOp udiv(
-    r[r1],
     r[r2],
+    r[r1],
     quotient,
     modulus
     );
 
 sDivOp sdiv(
-    r[r1],
     r[r2],
+    r[r1],
     squotient,
     smodulus
     );
