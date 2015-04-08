@@ -35,9 +35,7 @@ func HandleMacro(words []string, pc uint16) {
 		handleDef(words[1:])
 	case "#undef":
 		handleUndef(words[1:])
-	case "#pc":
-		handleLabel(words[1:], int(pc)-1)
-	case "#data":
+	case "#label":
 		handleLabel(words[1:], int(pc))
 	}
 }

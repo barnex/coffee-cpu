@@ -50,7 +50,7 @@ const (
 // ALU Opcodes
 const (
 	LOAD  = 0x01 //  C <= mem[Ra+BBus]
-	STORE = 0x02 //  mem[Ra+B] = Rc, Ra <= Ra-1
+	STORE = 0x02 //  mem[B] = Ra, C <= Ra-1
 	AND   = 0x03 //  C <= Ra & B
 	OR    = 0x04 //  C <= Ra | Rb
 	XOR   = 0x05 //  C <= Ra ^ Rb
