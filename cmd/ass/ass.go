@@ -101,8 +101,8 @@ func ParseBVal(x string) (immb, regb, immv uint32) {
 		return 0, ParseReg(x), 0
 	} else {
 		immv := ParseInt(x, 14)
-		regb := (immv & 0xF0) >> 8
-		imml := (immv & 0x0F)
+		regb := (immv & 0xFC00) >> 10
+		imml := (immv & 0x03FF)
 		assert(regb < isa.NREG)
 		return 1, regb, imml
 	}
