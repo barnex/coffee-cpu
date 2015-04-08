@@ -18,11 +18,11 @@ const (
 )
 
 // micro-instruction LSB positions:
-// 	 31  30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13
-// 	ImmB  --RegA---   --RegB---   ------------ImmL-----------
+//  31  30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13
+//  ImmB  --RegA---   --RegB---   ------------ImmL-----------
 //
-//   12  11 10  9  8  7  6  5  4  3  2  1  0
-// 	  ---ALU OPC----  --RegC----  -Cond--  cmp
+//  12  11 10  9  8  7  6  5  4  3  2  1  0
+//   ---ALU OPC----  --RegC----  -Cond--  cmp
 const (
 	ImmB = 31 // 0: put RB on BValue bus, 1: put bits [26:13] on BValue bus
 	RegA = 27 // register A

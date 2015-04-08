@@ -38,23 +38,21 @@ func Assemble(in io.Reader, out io.Writer) {
 			if len(words) != 6 {
 				Err("need 5 operands")
 			}
-			//opca := ParseOpcode(words[0])
+			opca := ParseOpcode(words[0])
 			rega := ParseReg(transl(words[1]))
 			immb, regb, immv := ParseBVal(transl(words[2]))
-			//cond := ParseCond(words[3])
-			//regc := ParseReg(transl(words[4]))
-			//comp := ParseCmp(words[5])
-			_ = regb
-			_ = immv
+			cond := ParseCond(words[3])
+			regc := ParseReg(transl(words[4]))
+			comp := ParseCmp(words[5])
 
 			bits = (immb << isa.ImmB) |
-				(rega << isa.RegA)
-			//(regb << isa.RegB) |
-			//(immv << isa.ImmV) |
-			//(opca << isa.Opc) |
-			//(regc << isa.RegC) |
-			//(cond << isa.Cond) |
-			//(comp << isa.Comp)
+				(rega << isa.RegA) |
+				(regb << isa.RegB) |
+				(immv << isa.ImmL) |
+				(opca << isa.Opc) |
+				(regc << isa.RegC) |
+				(cond << isa.Cond) |
+				(comp << isa.Comp)
 
 		}
 		fmt.Printf("%032b\n", bits)
