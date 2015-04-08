@@ -4,19 +4,19 @@ module COFFEE(input CLOCK_50,
     output [6:0]HEX1_D,
     output [6:0]HEX2_D,
     output [6:0]HEX3_D,
-    input [2:0]BUTTON
-);
+    input [2:0]BUTTON);
 
-wire [15:0]address;
-wire [31:0]data;
-wire [31:0]q;
-wire [7:0]status;
-wire wren;
-wire stall;
+wire [11:0] instructionAddress;
+wire [31:0] instruction;
+wire [15:0] dataAddress;
+wire [31:0] writeData;
+wire [31:0] readData;
+wire dataWrEn;
 
 wire cpuClk; 
 wire mmuClk;
 
+wire [7:0] status;
 assign LEDG[7:0] = status;
 
 reg nRst;
@@ -29,24 +29,29 @@ always @(posedge cpuClk) begin
     end
 end
 
-MMU mmu(address, data, q, wren, stall, 
+MMU mmu(instructionAddress, 
+    instruction,
+    dataAddress,
+    writeData,
+    readData,
+    dataWrEn,
     HEX0_D, HEX1_D, HEX2_D, HEX3_D,
     nRst, mmuClk);
 
-CPU cpu(data, 
-    q, 
-    address,
-    wren, 
-    cpuClk,
+CPU cpu(
+    writeData,
+    readData,
+    dataWrEn,
+    dataAddress,
+    instruction,
+    instructionAddress,
     status,
     nRst,
-    stall, ,
-    );
+    cpuClk);
 
 masterpll mainPLL(
-	CLOCK_50,
-	cpuClk,
-	mmuClk
-	);
+    CLOCK_50,
+    cpuClk,
+    mmuClk);
 
 endmodule

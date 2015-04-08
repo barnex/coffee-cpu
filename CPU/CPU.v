@@ -1,29 +1,16 @@
-module CPU(output reg [31:0]data, // Data is output on this bus
-    input [31:0]q,	    // Data is input on this bus
-    output reg [15:0]address, // Address for the RAM
-    output reg wren,	    // Enable write for the RAM
-    input clk,		    // What could this be? Do you have any idea? Seems irrelevant
-    output reg [7:0]status, // Status indicator of the CPU
-    input nreset,	    // Reset, active low, pull high to run CPU	
-    input stall,	    // Puts the CPU on hold 
-    input IRQ,		    // An interrupt service has been requested
-    input [7:0] IRQn	    // and this is the interrupt number
-    );
+module CPU(
+    output reg	[31:0]dataOut,
+    input	[31:0]dataIn,
+    output reg	dataWrEn,
+    output reg	[15:0]dataAddress,
+    input	[31:0]instructionIn,
+    output wire [11:0]instructionAddress,
+    output reg	[7:0]cpuStatus,
+    input nRst,
+    input clk);
 
-`define NOP	    8'h00
 `define LOAD	    8'h01
 `define STORE	    8'h02
-`define LOADI	    8'h03
-`define STORI	    8'h04
-`define LOADLI	    8'h05
-`define LOADHI	    8'h06
-`define LOADLISE    8'h07
-`define JUMPZ	    8'h08
-`define JUMPNZ	    8'h09
-`define JUMPLT	    8'h0A
-`define JUMPGTE	    8'h0B
-
-`define MOV	    8'h0C
 `define AND	    8'h0D
 `define OR	    8'h0E
 `define XOR	    8'h0F
@@ -32,231 +19,204 @@ module CPU(output reg [31:0]data, // Data is output on this bus
 `define SUB	    8'h12
 `define MUL	    8'h13
 `define DIV	    8'h14
-`define SDIV	    8'h15
+`define SDIV	    8'h14
 
-`define READSTAT    8'h16
+`define ALWAYS	    3'h0
+`define NEVER	    3'h1
+`define ZERO	    3'h2
+`define NOTZERO	    3'h3
+`define GE	    3'h4
+`define LT	    3'h5
 
+// Decode/demux of the instruction 
+wire [3:0]Ra, Rb, Rc;
+wire Imb, Cmp;
+wire [13:0] Imm;
+wire [4:0] Opc;
+wire [2:0] Cond;
+
+// Possible levels of the CPU, currently only LEVEL1 & LEVEL2 is in use
 `define LEVEL1	8'h0
 `define LEVEL2	8'h1
 `define LEVEL3	8'h2
-`define PREFETCH_LEVEL	8'h3
 
-
-reg [15:0] pc;
-reg [31:0]r[7:0];
-wire [31:0]command;
-reg [31:0]hCommand;
-reg [15:0]hAddress;
-
-reg hSelect;
+// Following are registers used by the CPU
+// PC is the program counter, mapped to the instruction address
+reg [11:0] pc;
+// The usual (14) working registers
+reg [31:0]r[13:0];
+// The current state of the CPU, only accessible by the CPU state machine
 reg [7:0] state;
+// The resultant status following an operation
+reg [7:0] status;
+wire zero;
+wire ge;
+assign zero	= status[0];
+assign ge	= status[2];
+// The overflow register, for DIV and MUL
+reg [31:0] overflow;
+// Moehahahaha!
+reg [31:0] devNull;
+// Map pc -> instruction address
+assign instructionAddress = pc;
 
-wire [7:0]op;
-wire [3:0]r1;
-wire [3:0]r2;
-wire [3:0]r3;
-wire [15:0]addrOp;
-wire [31:0] quotient;
-wire [31:0] modulus;
-wire [31:0] squotient;
-wire [31:0] smodulus;
-wire [63:0] mulres;
-wire [32:0] addres;
+assign Imb  = instructionIn[31];
+assign Ra   = instructionIn[30:27];
+assign Rb   = instructionIn[26:23];
+assign Imm  = instructionIn[26:13];
+assign Opc  = instructionIn[12:8];
+assign Rc   = instructionIn[7:4];
+assign Cond = instructionIn[3:1];
+assign Cmp  = instructionIn[0];
 
-wire [7:0]hOp;
-wire [3:0] hR1, hR2, hR3;
-wire [15:0]hAddrOp;
+wire [31:0] Bval;
+assign Bval = (Imb == 1'b1) ? { {18{Imm[11]}}, Imm} : r[Rb];
+reg writeBackEnable;
+reg [31:0] Aval;
+wire [32:0] AddressTmp;
+assign AddressTmp = Aval+Bval;
 
-assign command = q;
-assign op = command[31:24];
-assign r1 = command[19:16];
-assign r2 = command[11:8];
-assign r3 = command[3:0];
-assign addrOp = command[15:0];
+wire [31:0] ALUInA, ALUInB, ALUOut, ALUOverflow; 
+wire [7:0] ALUStatusOut;
+ALU alu(ALUInA, ALUInB, Opc, status, ALUStatusOut, ALUOut, ALUOverflow);
+assign ALUInA = r[Ra];
+assign ALUInB = Bval;
 
-assign hOp = hCommand[31:24];
-assign hR1 = hCommand[19:16];
-assign hR2 = hCommand[11:8];
-assign hR3 = hCommand[3:0];
-assign hAddrOp = hCommand[15:0];
-
-integer i;
-
-uDivOp udiv(
-    r[r2],
-    r[r1],
-    quotient,
-    modulus
-    );
-
-sDivOp sdiv(
-    r[r2],
-    r[r1],
-    squotient,
-    smodulus
-    );
-
-assign mulres = r[r1] * r[r2];
-
-assign addres = {1'b0, r[r1]} + {1'b0, r[r2]};
-
-always @(posedge clk) begin
-    if( !nreset ) begin
-	state <= `LEVEL1;
-	pc <= 16'hFFFF;
-	address <= 16'h0000;
-	wren <= 1'b0;
-	status <= 8'hA0;
-	hSelect <= 1'b0;
-	for(i = 0; i < 8; i = i+1) begin
-	    r[i] <= 32'h0;
+always @(*)
+begin
+    case(Ra)
+	4'hE: begin
+	    Aval = pc;
 	end
-    end else if( !stall ) begin
-    case(state)
-	`LEVEL1: begin
-	    // Let know that the CPU is running as normal
-	    status <= 8'h00;
-	    hSelect <= 1'b0;
-	    // Decode and process the current command
-	    case (op)
-		`LOAD: begin
-		    wren <= 1'b0;
-		end
-		`STORE: begin
-		    wren <= 1'b1;
-		    data <= r[r3];
-		end
-		`LOADI: begin
-		    wren <= 1'b0;
-		end
-		`STORI: begin
-		    wren <= 1'b1;
-		    data <= r[r1];
-		end
-		`MOV: begin
-		    r[r2] <= r[r1];
-		end
-		`LOADLI: begin
-		    r[r1] <= {r[r1][31:16], addrOp};
-		end
-		`LOADHI: begin 
-		    r[r1] <= {addrOp, r[r1][15:0]};
-		end
-		`LOADLISE: begin
-		    r[r1] <= { {16{addrOp[15]}}, addrOp};
-		end
-		`AND: begin
-		    r[r3] <= r[r1] & r[r2];
-		end
-		`OR: begin
-		    r[r3] <= r[r1] | r[r2]; 
-		end
-		`XOR: begin
-		    r[r3] <= r[r1] ^ r[r2];
-		end
-		`ADD: begin
-		    r[r3] <= addres[31:0];
-		    status[0] <= addres[32];
-		end
-		`ADDC: begin
-		    r[r3] <= addres[31:0] + status[0];
-		    status[0] <= addres[32];
-		end
-		`SUB: begin
-		    r[r3] <= r[r1] - r[r2];
-		end
-		`MUL: begin
-		    r[r3] <= mulres[31:0];
-		    r[r3+1] <= mulres[63:32]; 
-		end
-		`DIV: begin
-		    r[r3] <= quotient;
-		    r[r3+1] <= modulus;
-		end    
-		`SDIV: begin
-		    r[r3] <= squotient;
-		    r[r3+1] <= smodulus;
-		end    
-		`READSTAT: begin
-		    r[r1] <= status;
-		end
-	    endcase
-	    // If we are dealing with a load/store operation, alter the
-	    // address to the RAM
-	    if( (op == `LOAD) || (op == `STORE) ) begin
-		hCommand <= q;
-		hAddress <= address;
-		address <= r[r1+r2];
-		state <= `LEVEL2;
-	    end else if( (op == `LOADI) || (op == `STORI) ) begin
-		hCommand <= q;
-		hAddress <= address;
-		address <= addrOp;
-		state <= `LEVEL2;
-	    // If we are dealing with a JUMPZ operation, alter the address
-	    // with the correct jump value
-	    end else if( op > (`JUMPZ - 1) && op < (`JUMPGTE + 1) ) begin
-		case(op)
-		    `JUMPZ: begin
-			if( r[r1] == 8'h0 ) begin
-			    pc <= pc + addrOp;
-			    address <= address + addrOp;
-			end else begin
-			    pc <= pc + 1;
-			    address <= address + 1;
-			end
-		    end
-		    `JUMPNZ: begin
-			if( r[r1] != 8'h0 ) begin
-			    pc <= pc + addrOp;
-			    address <= address + addrOp;
-			end else begin
-			    pc <= pc + 1;
-			    address <= address + 1;
-			end
-		    end
-		    `JUMPLT: begin
-			if( r[r1][31] == 1'b1 ) begin
-			    pc <= pc + addrOp;
-			    address <= address + addrOp;
-			end else begin
-			    pc <= pc + 1;
-			    address <= address + 1;
-			end
-		    end
-		    `JUMPGTE: begin
-			if( r[r1][31] == 1'b0 ) begin
-			    pc <= pc + addrOp;
-			    address <= address + addrOp;
-			end else begin
-			    pc <= pc + 1;
-			    address <= address + 1;
-			end
-		    end
-		endcase
-	    end else begin
-		pc <= pc + 1;
-		address <= address + 1;
-	    end
+	4'hF: begin
+	    Aval = overflow;
 	end
-	`LEVEL2: begin
-	    case(hOp)
-		// If we were dealing with a LOAD LEVEL2 operation, store the
-		// result
-		`LOAD: begin
-		    r[hR3] <= q; 
-		end
-		`LOADI: begin
-		    r[hR1] <= q;
-		end
-	    endcase
-	    // Increase the program counter and address as usual and proceed to
-	    pc <= pc + 1;
-	    address <= hAddress + 1;
-	    wren <= 1'b0;
-	    state <= `LEVEL1;
+	default: begin
+	    Aval = r[Ra];
 	end
     endcase
+end
+
+/*
+always @(*)
+*/
+always @(*)
+begin
+    case(Cond)
+	`ALWAYS: begin
+	    writeBackEnable = 1'b1;
+	end
+	`NEVER: begin
+	    writeBackEnable = 1'b0;
+	end
+	`ZERO: begin
+	    if( zero == 1'b1 )
+		writeBackEnable = 1'b1;
+	    else
+		writeBackEnable = 1'b0;
+	end
+	`NOTZERO: begin
+	    if( zero == 1'b0 )
+		writeBackEnable = 1'b1;
+	    else
+		writeBackEnable = 1'b0;
+	end
+	`GE: begin
+	    if( ge == 1'b1 )
+		writeBackEnable = 1'b1;
+	    else
+		writeBackEnable = 1'b0;
+	end
+	`LT: begin
+	    if( ge == 1'b0 )
+		writeBackEnable = 1'b1;
+	    else
+		writeBackEnable = 1'b0;
+	end
+	default: begin
+	    writeBackEnable = 1'b1;
+	end
+    endcase
+end
+
+always @(posedge clk) begin
+    if(Cmp)
+	status <= ALUStatusOut;
+end
+
+always @(posedge clk) begin
+    if( !nRst ) begin
+	state	    <= `LEVEL1;
+	pc	    <= 12'h000;
+	dataWrEn    <= 1'b0;
+	cpuStatus   <= 8'hA0;
+	r[0]	    <= 32'h0;
+	r[1]	    <= 32'h0;
+	r[2]	    <= 32'h0;
+	r[3]	    <= 32'h0;
+	r[4]	    <= 32'h0;
+	r[5]	    <= 32'h0;
+	r[6]	    <= 32'h0;
+	r[7]	    <= 32'h0;
+	r[8]	    <= 32'h0;
+	r[9]	    <= 32'h0;
+	r[10]	    <= 32'h0;
+	r[11]	    <= 32'h0;
+	r[12]	    <= 32'h0;
+	r[13]	    <= 32'h0;
+    end else begin
+	case(state)
+	    `LEVEL1: begin
+		// Let know that the CPU is running as normal
+		cpuStatus <= 8'h00;
+		// Decode and process the current command
+		case (Opc)
+		    `LOAD: begin
+			dataAddress <= AddressTmp[15:0];
+			dataWrEn    <= 1'b0;
+			state	    <= `LEVEL2;
+		    end
+		    `STORE: begin
+			dataAddress <= AddressTmp[15:0];
+			dataOut	    <= r[Rc];
+			dataWrEn    <= 1'b1;
+		    end
+		endcase
+		if( (Opc != `LOAD) && (writeBackEnable == 1'b1) ) begin
+		    case(Rc)
+			4'hE: begin
+			    pc	<= ALUOut[11:0];
+			end
+			4'hF: begin
+			    overflow <= ALUOut;
+			end
+			default: begin
+			    r[Rc] <= ALUOut;
+			    overflow <= ALUOverflow;
+			end	
+		    endcase
+		end
+		if( (Opc != `LOAD) && (Rc != 4'hE)) begin
+		    pc <= pc + 12'h1;
+		end
+	    end
+	    `LEVEL2: begin
+		case(Rc)
+		    4'hE: begin
+			pc	<= dataIn[11:0];
+		    end
+		    4'hF: begin
+			overflow <= dataIn;
+			pc	<= pc + 12'h1;
+		    end
+		    default: begin
+			r[Rc] <= dataIn;
+			pc	<= pc + 12'h1;
+		    end	
+		endcase
+		state	<= `LEVEL1;
+	    end
+	endcase
     end
 end
 
