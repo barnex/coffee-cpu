@@ -1,37 +1,22 @@
 package main
 
 import (
-	"../../ihex"
-	. "../../isa"
 	"bufio"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
+
+	"../../ihex"
+	"../../isa"
 )
 
 const COMMENT = "//"
 
-var pc uint16
-
-func Preprocess(in io.Reader) {
-	reader := bufio.NewReader(in)
-	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
-		if len(words) == 0 {
-			continue
-		}
-
-		if strings.HasPrefix(words[0], "#") {
-			HandleMacro(words)
-			continue
-		}
-		pc++
-	}
-}
-
 func Assemble(in io.Reader, out io.Writer) {
 	reader := bufio.NewReader(in)
+	var pc uint16
 	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
 		if len(words) == 0 {
 			continue
@@ -41,44 +26,64 @@ func Assemble(in io.Reader, out io.Writer) {
 			continue
 		}
 
+		if pc%4 == 0 {
+			fmt.Println("\niaaaabbbbiiiiiiiiiioooooccccwww+")
+		}
 		var bits uint32
 
 		if words[0] == "DATA" {
-			v, err := strconv.ParseInt(words[1], 0, 64)
-			Check(err)
+			v := ParseInt(words[1], 32)
 			bits = uint32(v)
 		} else {
-
-			opc, ok := Opcodes[words[0]]
-			if !ok {
-				Err("illegal instruction: " + words[0])
+			if len(words) != 6 {
+				Err("need 5 operands")
 			}
+			//opca := ParseOpcode(words[0])
+			rega := ParseReg(transl(words[1]))
+			immb, regb, immv := ParseBVal(transl(words[2]))
+			//cond := ParseCond(words[3])
+			//regc := ParseReg(transl(words[4]))
+			//comp := ParseCmp(words[5])
+			_ = regb
+			_ = immv
 
-			switch {
-			default:
-				panic(words[0])
-			case opc == HALT:
-				if len(words) > 1 {
-					Err("unexpected arguments")
-				}
-				bits = uint32(opc) << 24
-			case IsRegAddr(opc):
-				CheckOps(words, 2)
-				bits = uint32(opc)<<24 | Reg(0, words)<<16 | uint32(Addr(words))
-			case IsReg3(opc):
-				CheckOps(words, 3)
-				bits = uint32(opc)<<24 | Reg(0, words)<<16 | Reg(1, words)<<8 | Reg(2, words)
-			}
+			bits = (immb << isa.ImmB) |
+				(rega << isa.RegA)
+			//(regb << isa.RegB) |
+			//(immv << isa.ImmV) |
+			//(opca << isa.Opc) |
+			//(regc << isa.RegC) |
+			//(cond << isa.Cond) |
+			//(comp << isa.Comp)
+
 		}
+		fmt.Printf("%032b\n", bits)
 		ihex.WriteUint32(out, pc, bits)
 		pc++
 	}
 	ihex.WriteEOF(out)
 }
 
-func Reg(i int, words []string) uint32 {
-	words = words[1:]
-	r := transl(words[i])
+func ParseOpcode(x string) uint32 {
+	if op, ok := isa.Opcodes[x]; ok {
+		return op
+	} else {
+		Err("illegal instruction: ", x)
+		panic("")
+	}
+}
+
+func ParseCond(x string) uint32 {
+	if c, ok := isa.Condcodes[x]; ok {
+		return c
+	} else {
+		Err("illegal condition: ", x)
+		panic("")
+	}
+}
+
+func ParseReg(x string) uint32 {
+	r := transl(x)
 	if !strings.HasPrefix(r, "R") {
 		Err("expected register, got: ", r)
 	}
@@ -87,33 +92,70 @@ func Reg(i int, words []string) uint32 {
 	if err != nil {
 		Err("malformed register name: R", r)
 	}
-	if rN > MAXREG || rN < 0 {
+	if rN > isa.MAXREG || rN < 0 {
 		Err("no such register: R", r)
 	}
 	return uint32(rN)
 }
 
-func Addr(words []string) uint16 {
-	a := transl(words[2])
-	addr, err := strconv.ParseInt(a, 0, 32)
-	if err != nil {
-		Err("malformed number:", a, err)
+func ParseBVal(x string) (immb, regb, immv uint32) {
+	if strings.HasPrefix(x, "R") {
+		return 0, ParseReg(x), 0
+	} else {
+		immv := ParseInt(x, 14)
+		regb := (immv & 0xF0) >> 8
+		imml := (immv & 0x0F)
+		assert(regb < isa.NREG)
+		return 1, regb, imml
 	}
-	if addr > MAXINT {
-		Err("too big:", a)
-	}
-	return uint16(addr)
 }
 
-func CheckOps(words []string, nOps int) {
-	if len(words) != nOps+1 {
-		Err("need ", nOps, " operands")
+func ParseCmp(x string) uint32 {
+	switch x {
+	default:
+		Err("illegal condition: ", x, " (need +cmp or -cmp)")
+		panic("")
+	case "+cmp":
+		return 1
+	case "-cmp":
+		return 0
 	}
 }
+
+func ParseInt(x string, bits uint) uint32 {
+	v_, err := strconv.ParseInt(x, 0, 64)
+	if err != nil {
+		Err(err)
+	}
+	v := uint32(v_)
+	max := uint32((1 << bits) - 1)
+	if v > max {
+		Err("value ", v_, " overflows ", bits, "bit (=", max, ")")
+	}
+	return v
+}
+
+//func Addr(words []string) uint16 {
+//	a := transl(words[2])
+//	addr, err := strconv.ParseInt(a, 0, 32)
+//	if err != nil {
+//		Err("malformed number:", a, err)
+//	}
+//	if addr > MAXINT {
+//		Err("too big:", a)
+//	}
+//	return uint16(addr)
+//}
 
 func Err(msg ...interface{}) {
 	str := fmt.Sprint(msg...)
 	log.Fatal(filename, ": ", linenumber, ": ", str)
+}
+
+func assert(test bool) {
+	if !test {
+		panic("assertion failed")
+	}
 }
 
 func ParseLine(in *bufio.Reader) ([]string, bool) {
@@ -138,8 +180,4 @@ func ParseLine(in *bufio.Reader) ([]string, bool) {
 		}
 	}
 	return tokens, true
-}
-
-func assemble(words []string) {
-	fmt.Println(len(words))
 }

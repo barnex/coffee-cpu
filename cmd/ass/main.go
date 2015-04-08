@@ -22,13 +22,12 @@ func main() {
 		Check(err)
 		filename = fname
 
-		outfname := fname[:len(fname)-len(path.Ext(fname))] + ".ihex"
+		outfname := fname[:len(fname)-len(path.Ext(fname))] + ".hex"
 		out, err := os.Create(outfname)
 		Check(err)
 
 		Preprocess(bytes.NewReader(input))
 		linenumber = 0
-		pc = 0
 		Assemble(bytes.NewReader(input), out)
 
 		out.Close()
