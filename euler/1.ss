@@ -15,18 +15,21 @@ LOADLI $3    3
 LOADLI $5    5
 LOADLI $1000 1000
 
-ADD    sum i       sum
-ADD    i   $3      i
+#label for1
+	ADD    sum i       sum
+	ADD    i   $3      i
 SUB    i   $1000   cmp
-JUMPLT cmp -3
+JUMPLT cmp for1
 
 XOR i i i
-DIV    i   $3    cmp // i%3 -> mod
-JUMPZ  mod 2
-ADD    sum i     sum
-ADD    i   $5    i
-SUB    i   $1000 cmp
-JUMPLT cmp -5
+#label for2
+	DIV    i   $3    cmp // i%3 -> mod
+	JUMPZ  mod cont
+		ADD    sum i     sum
+	#label cont
+	ADD    i   $5    i
+	SUB    i   $1000 cmp
+JUMPLT cmp for2
 
 STORI sum display
 

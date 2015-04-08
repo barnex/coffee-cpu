@@ -59,7 +59,7 @@ func Run() {
 		switch op {
 		default:
 			Fatalf("SIGILL pc:%08X opcode:%d\n", pc, op)
-		case NOP: // nop
+		//case NOP: // nop
 		case LOAD:
 			reg[r3] = mem[reg[r1]+reg[r2]]
 		case STORE:
@@ -88,19 +88,19 @@ func Run() {
 			reg[r1] = sign | uint32(addr)
 		case JUMPZ:
 			if reg[r1] == 0 {
-				pc += addr - 1
+				pc = addr - 1
 			}
 		case JUMPNZ:
 			if reg[r1] != 0 {
-				pc += addr - 1
+				pc = addr - 1
 			}
 		case JUMPLT:
 			if int32(reg[r1]) < 0 {
-				pc += addr - 1
+				pc = addr - 1
 			}
 		case JUMPGTE:
 			if int32(reg[r1]) >= 0 {
-				pc += addr - 1
+				pc = addr - 1
 			}
 		case MOV: // deprecated
 			reg[r2] = reg[r1]
@@ -134,25 +134,30 @@ func Run() {
 		case SDIV:
 			reg[r3] = uint32(int32(reg[r1]) / int32(reg[r2]))
 			reg[(r3+1)%MAXREG] = uint32(int32(reg[r1]) % int32(reg[r2]))
+		case HALT:
+			os.Exit(0)
 		}
 
 		pc++
+		if pc == MEMWORDS {
+			Fatalf("SIGSEGV: pc = %08X", pc)
+		}
 	}
 }
 
 // load word form data region, prevent access to instructions
 func load(addr uint16) uint32 {
-	if addr < datastart {
-		Fatalf("SIGSEGV: attempt to load code as data: pc%08X: load %08X (<%08X)", pc, addr, datastart)
-	}
+	//if addr < datastart {
+	//	Fatalf("SIGSEGV: attempt to load code as data: pc%08X: load %08X (<%08X)", pc, addr, datastart)
+	//}
 	return mem[addr]
 }
 
 // store word to data region, prevent access to instructions
 func store(v uint32, addr uint16) {
-	if addr < datastart {
-		Fatalf("SIGSEGV: attempt to overwrite code: pc%08X: store %08X (<%08X)", pc, addr, datastart)
-	}
+	//if addr < datastart {
+	//	Fatalf("SIGSEGV: attempt to overwrite code: pc%08X: store %08X (<%08X)", pc, addr, datastart)
+	//}
 	mem[addr] = v
 }
 
@@ -161,9 +166,9 @@ func fetch(addr uint16) uint32 {
 	if addr == datastart {
 		os.Exit(0)
 	}
-	if addr >= datastart {
-		Fatalf("SIGSEGV: control enters data region: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
-	}
+	//if addr >= datastart {
+	//	Fatalf("SIGSEGV: control enters data region: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
+	//}
 	return mem[addr]
 }
 
@@ -213,6 +218,8 @@ func main() {
 	Check(err)
 	defer f.Close()
 	in := bufio.NewReader(f)
+
+	fmt.Println("memory: ", MEMWORDS, " words")
 
 	for addr, v, ok := ParseLine(in); ok; addr, v, ok = ParseLine(in) {
 		mem[addr] = v

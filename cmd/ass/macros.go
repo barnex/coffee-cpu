@@ -1,8 +1,31 @@
 package main
 
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"strings"
+)
+
 var defs = make(map[string]string)
 
-func HandleMacro(words []string) {
+func Preprocess(in io.Reader) {
+	reader := bufio.NewReader(in)
+	var pc uint16 = 0
+	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
+		if len(words) == 0 {
+			continue
+		}
+
+		if strings.HasPrefix(words[0], "#") {
+			HandleMacro(words, pc)
+			continue
+		}
+		pc++
+	}
+}
+
+func HandleMacro(words []string, pc uint16) {
 	switch words[0] {
 	default:
 		Err("bad macro: ", words[0])
@@ -10,6 +33,8 @@ func HandleMacro(words []string) {
 		handleDef(words[1:])
 	case "#undef":
 		handleUndef(words[1:])
+	case "#label":
+		handleLabel(words[1:], pc)
 	}
 }
 
@@ -31,6 +56,13 @@ func handleUndef(args []string) {
 		}
 		delete(defs, k)
 	}
+}
+
+func handleLabel(args []string, pc uint16) {
+	if len(args) != 1 {
+		Err("#label needs 1 argument, have: ", args)
+	}
+	handleDef([]string{args[0], fmt.Sprint(pc)})
 }
 
 func transl(x string) string {
