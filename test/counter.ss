@@ -4,7 +4,7 @@
 
 #def display 0x3FFF
 #def Rcount R1
-#def PC     R15
+#def PC     R14
 
 #label _start
 XOR   R0     R0       A R0     -cmp
