@@ -9,17 +9,17 @@ module CPU(
     input nRst,
     input clk);
 
-`define LOAD	    8'h01
-`define STORE	    8'h02
-`define AND	    8'h0D
-`define OR	    8'h0E
-`define XOR	    8'h0F
-`define ADD	    8'h10
-`define ADDC	    8'h11
-`define SUB	    8'h12
-`define MUL	    8'h13
-`define DIV	    8'h14
-`define SDIV	    8'h14
+`define LOAD	    5'h1
+`define STORE	    5'h2
+`define AND	    5'h3
+`define OR	    5'h4
+`define XOR	    5'h5
+`define ADD	    5'h6
+`define ADDC	    5'h7
+`define SUB	    5'h8
+`define MUL	    5'h9
+`define DIV	    5'hA
+`define SDIV	    5'hB
 
 `define ALWAYS	    3'h0
 `define NEVER	    3'h1
@@ -28,17 +28,19 @@ module CPU(
 `define GE	    3'h4
 `define LT	    3'h5
 
-// Decode/demux of the instruction 
-wire [3:0]Ra, Rb, Rc;
-wire Imb, Cmp;
-wire [13:0] Imm;
-wire [4:0] Opc;
-wire [2:0] Cond;
-
 // Possible levels of the CPU, currently only LEVEL1 & LEVEL2 is in use
-`define LEVEL1	8'h0
-`define LEVEL2	8'h1
-`define LEVEL3	8'h2
+`define FETCH	    8'h0
+`define DECODE	    8'h1
+`define EXECUTE	    8'h2
+`define WRITEBACK   8'h3
+
+// Decode/demux of the instruction 
+reg [3:0]Ra, Rb, Rc;
+reg Imb, Cmp;
+reg [13:0] Imm;
+reg [4:0] Opc;
+reg [2:0] Cond;
+
 
 // Following are registers used by the CPU
 // PC is the program counter, mapped to the instruction address
@@ -48,60 +50,37 @@ reg [31:0]r[13:0];
 // The current state of the CPU, only accessible by the CPU state machine
 reg [7:0] state;
 // The resultant status following an operation
-reg [7:0] status;
+reg [7:0] ALUStatus;
 wire zero;
 wire ge;
-assign zero	= status[0];
-assign ge	= status[2];
+assign zero	= ALUStatus[0];
+assign ge	= ALUStatus[2];
+// Depending on the ALUstatus, write back the final result
+reg writeBackEnable;
 // The overflow register, for DIV and MUL
 reg [31:0] overflow;
-// Moehahahaha!
-reg [31:0] devNull;
 // Map pc -> instruction address
 assign instructionAddress = pc;
 
-assign Imb  = instructionIn[31];
-assign Ra   = instructionIn[30:27];
-assign Rb   = instructionIn[26:23];
-assign Imm  = instructionIn[26:13];
-assign Opc  = instructionIn[12:8];
-assign Rc   = instructionIn[7:4];
-assign Cond = instructionIn[3:1];
-assign Cmp  = instructionIn[0];
+// The decoded value of Rb, which can be an immediate value or a register
+// (r-series only, not PC or overflow)
+reg [31:0] Bval;
 
-wire [31:0] Bval;
-assign Bval = (Imb == 1'b1) ? { {18{Imm[11]}}, Imm} : r[Rb];
-reg writeBackEnable;
+// The decoded value of Ra, which can be a register value (r-series)
+// or the value of PC or overflow
 reg [31:0] Aval;
-wire [32:0] AddressTmp;
-assign AddressTmp = Aval+Bval;
+
+// The data address decoded from Aval and Bval
+wire [32:0] targetDataAddress;
+assign targetDataAddress = Aval + Bval;
 
 wire [31:0] ALUInA, ALUInB, ALUOut, ALUOverflow; 
 wire [7:0] ALUStatusOut;
 ALU alu(ALUInA, ALUInB, Opc, status, ALUStatusOut, ALUOut, ALUOverflow);
-assign ALUInA = r[Ra];
+assign ALUInA = Aval;
 assign ALUInB = Bval;
 
-always @(*)
-begin
-    case(Ra)
-	4'hE: begin
-	    Aval = pc;
-	end
-	4'hF: begin
-	    Aval = overflow;
-	end
-	default: begin
-	    Aval = r[Ra];
-	end
-    endcase
-end
-
-/*
-always @(*)
-*/
-always @(*)
-begin
+always @(*) begin
     case(Cond)
 	`ALWAYS: begin
 	    writeBackEnable = 1'b1;
@@ -140,16 +119,12 @@ begin
 end
 
 always @(posedge clk) begin
-    if(Cmp)
-	status <= ALUStatusOut;
-end
-
-always @(posedge clk) begin
     if( !nRst ) begin
-	state	    <= `LEVEL1;
+	// Under reset conditions, everything goes to zero and we go to LEVEL
+	// 1 execution
+	state	    <= `FETCH;
 	pc	    <= 12'h000;
 	dataWrEn    <= 1'b0;
-	cpuStatus   <= 8'hA0;
 	r[0]	    <= 32'h0;
 	r[1]	    <= 32'h0;
 	r[2]	    <= 32'h0;
@@ -166,55 +141,109 @@ always @(posedge clk) begin
 	r[13]	    <= 32'h0;
     end else begin
 	case(state)
-	    `LEVEL1: begin
-		// Let know that the CPU is running as normal
-		cpuStatus <= 8'h00;
-		// Decode and process the current command
-		case (Opc)
-		    `LOAD: begin
-			dataAddress <= AddressTmp[15:0];
-			dataWrEn    <= 1'b0;
-			state	    <= `LEVEL2;
-		    end
-		    `STORE: begin
-			dataAddress <= AddressTmp[15:0];
-			dataOut	    <= r[Rc];
-			dataWrEn    <= 1'b1;
-		    end
-		endcase
-		if( (Opc != `LOAD) && (writeBackEnable == 1'b1) ) begin
-		    case(Rc)
-			4'hE: begin
-			    pc	<= ALUOut[11:0];
-			end
-			4'hF: begin
-			    overflow <= ALUOut;
-			end
-			default: begin
-			    r[Rc] <= ALUOut;
-			    overflow <= ALUOverflow;
-			end	
-		    endcase
-		end
-		if( (Opc != `LOAD) && (Rc != 4'hE)) begin
-		    pc <= pc + 12'h1;
-		end
+	    `FETCH: begin
+		Imb  <= instructionIn[31];
+		Ra   <= instructionIn[30:27];
+		Rb   <= instructionIn[26:23];
+		Imm  <= instructionIn[26:13];
+		Opc  <= instructionIn[12:8];
+		Rc   <= instructionIn[7:4];
+		Cond <= instructionIn[3:1];
+		Cmp  <= instructionIn[0];
+
+		state <= `DECODE;
 	    end
-	    `LEVEL2: begin
-		case(Rc)
-		    4'hE: begin
-			pc	<= dataIn[11:0];
-		    end
+	    `DECODE: begin
+		case(Ra)
 		    4'hF: begin
-			overflow <= dataIn;
-			pc	<= pc + 12'h1;
+			Aval <= pc;
+		    end
+		    4'hE: begin
+			Aval <= overflow;
 		    end
 		    default: begin
-			r[Rc] <= dataIn;
-			pc	<= pc + 12'h1;
-		    end	
+			Aval <= r[Ra];
+		    end
 		endcase
-		state	<= `LEVEL1;
+
+		if(Imb == 1'b1)
+		    Bval <= { {18{1'b0}}, Imm};
+		else
+		    if( Rb < 4'hE )
+			Bval <= r[Rb];
+		    else
+			Bval <= 32'h0;
+
+		state <= `EXECUTE;
+	    end
+	    `EXECUTE: begin
+		case (Opc)
+		    `LOAD: begin
+			// Write out the address (r[Ra]/pc/overflow + r[Rb]/Imm)
+			dataAddress <= targetDataAddress[15:0];
+			// We will not be writing, but reading in a value
+			dataWrEn    <= 1'b0;
+		    end
+		    `STORE: begin
+			// Write out the address
+			dataAddress <= Bval;
+			// Write out the data;
+			dataOut	    <= Aval;
+			// Enable writing
+			dataWrEn    <= 1'b1;
+		    end
+		    default: begin
+			dataWrEn    <= 1'b0;
+		    end
+		endcase
+
+		// Remember that parallel to these LOAD/STORE operations,
+		// Aval and Bval are racing through the ALU
+
+		state <= `WRITEBACK;
+	    end
+	    `WRITEBACK: begin
+		// If we were storing data, we are no longer
+		dataWrEn    <= 1'b0;
+
+		if( Cmp == 1'b1 ) begin
+		    ALUStatus <= ALUStatusOut;
+		end
+
+		if( Opc == `LOAD ) begin
+		    case(Rc)
+			4'hF: begin
+			    pc		<= dataIn;
+			end
+			4'hE: begin
+			    overflow	<= dataIn;
+			    pc		<= pc + 12'h1;
+			end
+			default: begin
+			    r[Rc]	<= dataIn;
+			    pc		<= pc + 12'h1;
+			end
+		    endcase
+		end else begin
+		    if( writeBackEnable == 1'b1 ) begin
+			case(Rc)
+			    4'hF: begin
+				pc	    <= ALUOut;
+			    end
+			    4'hE: begin
+				overflow    <= ALUOut;
+				pc	    <= pc + 12'h1;
+			    end
+			    default: begin
+				r[Rc]	    <= ALUOut;
+				pc	    <= pc + 12'h1;
+			    end
+			endcase
+		    end else begin
+			pc  <= pc + 12'h1;
+		    end
+		end
+		state <= `FETCH;
 	    end
 	endcase
     end
