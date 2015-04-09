@@ -26,7 +26,7 @@ func main() {
 		out, err := os.Create(outfname)
 		Check(err)
 
-		Preprocess(bytes.NewReader(input))
+		ScanMacros(bytes.NewReader(input))
 		linenumber = 0
 		Assemble(bytes.NewReader(input), out)
 

@@ -7,9 +7,11 @@ import (
 	"strings"
 )
 
+// stores macro defines
 var defs = make(map[string]string)
 
-func Preprocess(in io.Reader) {
+// Scan input and record macro definitions.
+func ScanMacros(in io.Reader) {
 	reader := bufio.NewReader(in)
 	var pc uint16 = 0
 	for words, ok := ParseLine(reader); ok; words, ok = ParseLine(reader) {
@@ -34,7 +36,7 @@ func HandleMacro(words []string, pc uint16) {
 	case "#undef":
 		handleUndef(words[1:])
 	case "#label":
-		handleLabel(words[1:], pc)
+		handleLabel(words[1:], int(pc))
 	}
 }
 
@@ -58,7 +60,7 @@ func handleUndef(args []string) {
 	}
 }
 
-func handleLabel(args []string, pc uint16) {
+func handleLabel(args []string, pc int) {
 	if len(args) != 1 {
 		Err("#label needs 1 argument, have: ", args)
 	}
