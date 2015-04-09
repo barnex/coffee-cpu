@@ -8,6 +8,6 @@
 
 #label _start
 XOR   R0     R0       A R0     -cmp
-STORE R0     display  A Rcount -cmp
+STORE Rcount display  A R0     -cmp
 ADD   Rcount 1        A Rcount -cmp
 ADD   R0     _start   A PC     -cmp
