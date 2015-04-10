@@ -133,15 +133,10 @@ func ParseCmp(x string) uint32 {
 	}
 }
 
-func ParseInt(x string, bits uint) uint32 {
-	v_, err := strconv.ParseInt(x, 0, 64)
+func ParseInt(x string, bits uint8) uint32 {
+	v, err := isa.ParseInt(x, bits)
 	if err != nil {
 		Err(err)
-	}
-	v := uint32(v_)
-	max := uint32((1 << bits) - 1)
-	if v > max {
-		Err("value ", v_, " overflows ", bits, "bit (=", max, ")")
 	}
 	return v
 }

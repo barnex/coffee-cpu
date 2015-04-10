@@ -38,17 +38,19 @@ func BinStr(x uint32) string {
 	return fmt.Sprintf("%032b", x)
 }
 
-//func ParseInt(x string, bits int) (uint32, error) {
-//	base := 0
-//	if strings.HasPrefix(x, "0b") || strings.HasPrefix(x, "0B") {
-//		base = 2
-//		x = x[2:]
-//	}
-//	v, err := strconv.ParseInt(x, base, 64)
-//	if err != nil{
-//		return 0, err
-//	}
-//	bits := uint32(v)
-//	if bits > ...
-//	return uint32(v), err
-//}
+func ParseInt(x string, bits uint8) (uint32, error) {
+	base := 0
+	if strings.HasPrefix(x, "0b") || strings.HasPrefix(x, "0B") {
+		base = 2
+		x = x[2:]
+	}
+	v, err := strconv.ParseInt(x, base, 64)
+	if err != nil {
+		return 0, err
+	}
+	result := uint64(v)
+	if result >= 1>>bits {
+		return 0, fmt.Errorf("value %v overflows %v bits", v, bits)
+	}
+	return uint32(v), err
+}

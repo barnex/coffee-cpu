@@ -21,18 +21,17 @@ var (
 
 // Machine state
 var (
-	reg       [NREG]uint32        // registers
-	instr     [INSTR_WORDS]uint32 // memory
-	mem       [MEM_WORDS]uint32   // memory
-	carry     bool                // carry flag
-	datastart uint16              // memory address of first writable data word (end of instructions)
-	disp      uint32              // data register for display peripheral
+	reg   [NREG]uint32        // registers
+	instr [INSTR_WORDS]uint32 // memory
+	mem   [MEM_WORDS]uint32   // memory
+	carry bool                // carry flag
+	disp  uint32              // data register for display peripheral
 )
 
 func Run() {
 	for {
 
-		//instr := fetch(pc)
+		instr := fetch(reg[PC_REG])
 
 		//// decode
 		//op := uint8((instr & 0xFF000000) >> 24)
