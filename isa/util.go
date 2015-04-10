@@ -49,7 +49,8 @@ func ParseInt(x string, bits uint8) (uint32, error) {
 		return 0, err
 	}
 	result := uint64(v)
-	if result >= 1>>bits {
+	max := (uint64(1) << (bits + 1)) - 1
+	if result > max {
 		return 0, fmt.Errorf("value %v overflows %v bits", v, bits)
 	}
 	return uint32(v), err

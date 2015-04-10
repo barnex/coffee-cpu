@@ -19,19 +19,25 @@ const (
 
 // micro-instruction LSB positions:
 //  31  30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13
-//  ImmB  --RegA---   --RegB---   ------------ImmL-----------
+//  IB  ----RA---   ---RB--- -----------------IL-------------
 //
 //  12  11 10  9  8  7  6  5  4  3  2  1  0
-//   ---ALU OPC----  --RegC----  -Cond--  cmp
+//   -----OPC------  ---RC-----  -Cond--  cmp
 const (
-	ImmB = 31 // 0: put RB on BValue bus, 1: put bits [26:13] on BValue bus
-	RegA = 27 // register A
-	RegB = 23 // register B, or 4 MSB's of immediate value when ImmB=1
-	ImmL = 13 // 10 LSB's of immediate value
-	Opc  = 8  // Opcode selector for ALU/Memory
-	RegC = 4  // register C
-	Cond = 1  // Writeback condition
-	Comp = 0  // 1: Update status register
+	IB  = 31 // 0: put RB on BValue bus, 1: put bits [26:13] on BValue bus
+	RAh = 30 // register A
+	RAl = 27 // register A
+	RBh = 26 // register B, or 4 MSB's of immediate value when ImmB=1
+	RBl = 23 // register B, or 4 MSB's of immediate value when ImmB=1
+	ILh = 22 // 10 LSB's of immediate value
+	ILl = 13 // 10 LSB's of immediate value
+	OPh = 12 // Opcode selector for ALU/Memory
+	OPl = 8  // Opcode selector for ALU/Memory
+	RCh = 7  // register C
+	RCl = 4  // register C
+	WCh = 3  // Writeback condition
+	WCl = 1  // Writeback condition
+	CMP = 0  // 1: Update status register
 )
 
 // Values for Writeback condition (µI bits 3:1)

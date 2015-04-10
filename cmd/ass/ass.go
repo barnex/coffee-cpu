@@ -38,21 +38,21 @@ func Assemble(in io.Reader, out io.Writer) {
 			if len(words) != 6 {
 				Err("need 5 operands")
 			}
-			opca := ParseOpcode(words[0])
-			rega := ParseReg(transl(words[1]))
-			immb, regb, immv := ParseBVal(transl(words[2]))
+			opc := ParseOpcode(words[0])
+			ra := ParseReg(transl(words[1]))
+			immb, rb, imml := ParseBVal(transl(words[2]))
 			cond := ParseCond(words[3])
-			regc := ParseReg(transl(words[4]))
+			rc := ParseReg(transl(words[4]))
 			comp := ParseCmp(words[5])
 
-			bits = (immb << isa.ImmB) |
-				(rega << isa.RegA) |
-				(regb << isa.RegB) |
-				(immv << isa.ImmL) |
-				(opca << isa.Opc) |
-				(regc << isa.RegC) |
-				(cond << isa.Cond) |
-				(comp << isa.Comp)
+			bits = isa.SetBits(bits, isa.IB, isa.IB, immb)
+			bits = isa.SetBits(bits, isa.RAl, isa.RAh, ra)
+			bits = isa.SetBits(bits, isa.RBl, isa.RBh, rb)
+			bits = isa.SetBits(bits, isa.ILl, isa.ILh, imml)
+			bits = isa.SetBits(bits, isa.OPl, isa.OPh, opc)
+			bits = isa.SetBits(bits, isa.RCl, isa.RCh, rc)
+			bits = isa.SetBits(bits, isa.WCl, isa.WCh, cond)
+			bits = isa.SetBits(bits, isa.CMP, isa.CMP, comp)
 
 		}
 		fmt.Printf("%032b\n", bits)
