@@ -6,21 +6,24 @@ import (
 
 func ExampleSetBits() {
 	var x uint32
-	x = SetBits(x, 3, 5, 0x3)
+	x = SetBits(x, 3, 5, 0x7)
 	fmt.Println(BinStr(x))
-	x = SetBits(x, 16, 32, 0xFFFF)
+	x = SetBits(x, 16, 31, 0xFFFF)
+	fmt.Println(BinStr(x))
+	x = SetBits(x, 31, 31, 0)
 	fmt.Println(BinStr(x))
 
 	//Output:
-	// 00000000000000000000000000011000
-	// 11111111111111110000000000011000
+	// 00000000000000000000000000111000
+	// 11111111111111110000000000111000
+	// 01111111111111110000000000111000
 }
 
 func ExampleGetBits() {
 	var x uint32
-	x = 0xFF1234F
+	x, _ = ParseInt("0b000000000000000000000000000000")
 	fmt.Printf("%x", GetBits(x, 4, 21))
 
 	//Output:
-	// 1234
+	// F234
 }
