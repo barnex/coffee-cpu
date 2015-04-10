@@ -81,6 +81,13 @@ func ParseCond(x string) uint32 {
 }
 
 func ParseReg(x string) uint32 {
+	if x == "PC" {
+		return isa.PCREG
+	}
+	if x == "Rx" {
+		return isa.OVERFLOWREG
+	}
+
 	r := transl(x)
 	if !strings.HasPrefix(r, "R") {
 		Err("expected register, got: ", r)
@@ -89,6 +96,12 @@ func ParseReg(x string) uint32 {
 	rN, err := strconv.Atoi(r)
 	if err != nil {
 		Err("malformed register name: R", r)
+	}
+	if rN == isa.PCREG {
+		Err("the program counter is explictly called PC")
+	}
+	if rN == isa.OVERFLOWREG {
+		Err("the overflow register is explictly called Rx")
 	}
 	if rN > isa.MAXREG || rN < 0 {
 		Err("no such register: R", r)
