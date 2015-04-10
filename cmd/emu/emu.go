@@ -46,7 +46,12 @@ func Run() {
 
 		// debug
 		if *flagTrace {
-			fmt.Printf("%032b %v R%v I%v, R%v %v R%v %v %v\n", instr, op, ra, ib, rb, iv, rc, wb, c_)
+			B := fmt.Sprintf("R%v", rb)
+			if ib != 0 {
+				B = fmt.Sprint(iv)
+			}
+			B = fmt.Sprintf("% 5s", B)
+			fmt.Printf("%032b:% 5s R%v %s %v R%v %v\n", instr, OpcodeStr[op], ra, B, CondStr[wb], rc, c_)
 		}
 
 		//// execute
