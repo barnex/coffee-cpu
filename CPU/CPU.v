@@ -76,7 +76,7 @@ assign targetDataAddress = Aval + Bval;
 
 wire [31:0] ALUInA, ALUInB, ALUOut, ALUOverflow; 
 wire [7:0] ALUStatusOut;
-ALU alu(ALUInA, ALUInB, Opc, status, ALUStatusOut, ALUOut, ALUOverflow);
+ALU alu(ALUInA, ALUInB, Opc, ALUStatus, ALUStatusOut, ALUOut, ALUOverflow);
 assign ALUInA = Aval;
 assign ALUInB = Bval;
 
@@ -155,10 +155,10 @@ always @(posedge clk) begin
 	    end
 	    `DECODE: begin
 		case(Ra)
-		    4'hF: begin
+		    4'hE: begin
 			Aval <= pc;
 		    end
-		    4'hE: begin
+		    4'hF: begin
 			Aval <= overflow;
 		    end
 		    default: begin
@@ -186,7 +186,7 @@ always @(posedge clk) begin
 		    end
 		    `STORE: begin
 			// Write out the address
-			dataAddress <= Bval;
+			dataAddress <= Bval[15:0];
 			// Write out the data;
 			dataOut	    <= Aval;
 			// Enable writing
@@ -212,10 +212,10 @@ always @(posedge clk) begin
 
 		if( Opc == `LOAD ) begin
 		    case(Rc)
-			4'hF: begin
-			    pc		<= dataIn;
-			end
 			4'hE: begin
+			    pc		<= dataIn[11:0];
+			end
+			4'hF: begin
 			    overflow	<= dataIn;
 			    pc		<= pc + 12'h1;
 			end
@@ -227,10 +227,10 @@ always @(posedge clk) begin
 		end else begin
 		    if( writeBackEnable == 1'b1 ) begin
 			case(Rc)
-			    4'hF: begin
-				pc	    <= ALUOut;
-			    end
 			    4'hE: begin
+				pc	    <= ALUOut[11:0];
+			    end
+			    4'hF: begin
 				overflow    <= ALUOut;
 				pc	    <= pc + 12'h1;
 			    end
