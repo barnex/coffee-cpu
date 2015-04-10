@@ -53,7 +53,6 @@ func Assemble(in io.Reader, out io.Writer) {
 			bits = isa.SetBits(bits, isa.RCl, isa.RCh, rc)
 			bits = isa.SetBits(bits, isa.WCl, isa.WCh, cond)
 			bits = isa.SetBits(bits, isa.CMP, isa.CMP, comp)
-
 		}
 		fmt.Printf("%032b\n", bits)
 		ihex.WriteUint32(out, pc, bits)

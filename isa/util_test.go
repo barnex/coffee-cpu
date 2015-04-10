@@ -21,9 +21,9 @@ func ExampleSetBits() {
 
 func ExampleGetBits() {
 	var x uint32
-	x, _ = ParseInt("0b000000000000000000000000000000")
-	fmt.Printf("%x", GetBits(x, 4, 21))
+	x, _ = ParseInt("0b000000000000000000000100110000", 32)
+	fmt.Printf("%b", GetBits(x, 4, 7))
 
 	//Output:
-	// F234
+	// 11
 }

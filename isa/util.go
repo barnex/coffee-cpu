@@ -28,8 +28,10 @@ func GetBits(x uint32, a, b int) uint32 {
 		panic("setbits: illegal range")
 	}
 	mask := (uint32(1) << uint32(b-a+1)) - 1
-	x &= mask
 	shift := uint32(a)
+	mask <<= shift
+
+	x &= mask
 	x >>= shift
 	return x
 }

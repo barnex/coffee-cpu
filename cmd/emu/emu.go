@@ -31,28 +31,23 @@ var (
 func Run() {
 	for {
 
-		instr := fetch(reg[PC_REG])
+		instr := fetch(reg[PCREG])
 
-		//// decode
-		//op := uint8((instr & 0xFF000000) >> 24)
-		//r1 := uint8((instr & 0x00FF0000) >> 16)
-		//r2 := uint8((instr & 0x0000FF00) >> 8)
-		//r3 := uint8((instr & 0x000000FF))
-		//addr := uint16(instr & 0x0000FFFF)
+		reg[PCREG]++
 
-		//// debug
-		//if *flagTrace {
-		//	switch {
-		//	default:
-		//		fmt.Printf("(%08X:%08X):% 8s %06X\n", pc, mem[pc], OpStr(op), uint32(op)&0x00FFFFFF)
-		//	case IsRegAddr(op):
-		//		PrintRA(pc, op, r1, addr)
-		//	case IsReg2(op):
-		//		PrintR2(pc, op, r1, r2)
-		//	case IsReg3(op):
-		//		PrintR3(pc, op, r1, r2, r3)
-		//	}
-		//}
+		ib := GetBits(instr, IB, IB)
+		ra := GetBits(instr, RAl, RAh)
+		rb := GetBits(instr, RBl, RBh)
+		iv := GetBits(instr, ILl, RBh)
+		op := GetBits(instr, OPl, OPh)
+		rc := GetBits(instr, RCl, RCh)
+		wb := GetBits(instr, WCl, WCh)
+		c_ := GetBits(instr, CMP, CMP)
+
+		// debug
+		if *flagTrace {
+			fmt.Printf("%032b %v R%v I%v, R%v %v R%v %v %v\n", instr, op, ra, ib, rb, iv, rc, wb, c_)
+		}
 
 		//// execute
 		//switch op {
@@ -161,10 +156,7 @@ func store(v uint32, addr uint16) {
 }
 
 // load instruction, prevent executing data region
-func fetch(addr uint16) uint32 {
-	if addr == datastart {
-		os.Exit(0)
-	}
+func fetch(addr uint32) uint32 {
 	//if addr >= datastart {
 	//	Fatalf("SIGSEGV: control enters data region: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
 	//}
@@ -222,9 +214,6 @@ func main() {
 
 	for addr, v, ok := ParseLine(in); ok; addr, v, ok = ParseLine(in) {
 		mem[addr] = v
-		if addr >= datastart {
-			datastart = addr + 1
-		}
 	}
 
 	Run()
