@@ -21,12 +21,18 @@ var (
 
 // Machine state
 var (
-	reg   [NREG]uint32        // registers
-	instr [INSTR_WORDS]uint32 // memory
-	mem   [MEM_WORDS]uint32   // memory
-	carry bool                // carry flag
-	disp  uint32              // data register for display peripheral
+	reg    [NREG]uint32        // registers
+	instr  [INSTR_WORDS]uint32 // memory
+	mem    [MEM_WORDS]uint32   // memory
+	carry  bool                // carry flag
+	status [8]bool
+	disp   uint32 // data register for display peripheral
 )
+
+func init() {
+	status[NEVER] = false
+	status[ALWAYS] = true
+}
 
 func Run() {
 	for {
@@ -54,98 +60,73 @@ func Run() {
 			fmt.Printf("%032b:% 5s R%v %s %v R%v %v\n", instr, OpcodeStr[op], ra, B, CondStr[wb], rc, c_)
 		}
 
-		//// execute
-		//switch op {
-		//default:
-		//	Fatalf("SIGILL pc:%08X opcode:%d\n", pc, op)
-		////case NOP: // nop
-		//case LOAD:
-		//	reg[r3] = mem[reg[r1]+reg[r2]]
-		//case STORE:
-		//	mem[reg[r1]+reg[r2]] = reg[r3]
-		//case LOADI:
-		//	reg[r1] = load(addr)
-		//case STORI:
-		//	if addr == PERI_DISPLAY {
-		//		display(reg[r1])
-		//	} else {
-		//		store(reg[r1], addr)
-		//	}
-		//case LOADLI:
-		//	v := reg[r1]
-		//	v = (v & 0xFFFF0000) | uint32(addr)
-		//	reg[r1] = v
-		//case LOADHI:
-		//	v := reg[r1]
-		//	v = (v & 0x0000FFFF) | (uint32(addr) << 16)
-		//	reg[r1] = v
-		//case LOADLISE:
-		//	var sign uint32
-		//	if (addr & 0x8000) != 0 {
-		//		sign = 0xFFFF0000
-		//	}
-		//	reg[r1] = sign | uint32(addr)
-		//case JUMPZ:
-		//	if reg[r1] == 0 {
-		//		pc = addr - 1
-		//	}
-		//case JUMPNZ:
-		//	if reg[r1] != 0 {
-		//		pc = addr - 1
-		//	}
-		//case JUMPLT:
-		//	if int32(reg[r1]) < 0 {
-		//		pc = addr - 1
-		//	}
-		//case JUMPGTE:
-		//	if int32(reg[r1]) >= 0 {
-		//		pc = addr - 1
-		//	}
-		//case MOV: // deprecated
-		//	reg[r2] = reg[r1]
-		//case AND:
-		//	reg[r3] = reg[r1] & reg[r2]
-		//case OR:
-		//	reg[r3] = reg[r1] | reg[r2]
-		//case XOR:
-		//	reg[r3] = reg[r1] ^ reg[r2]
-		//case ADD:
-		//	sum := uint64(reg[r1]) + uint64(reg[r2])
-		//	carry = (sum > 0xFFFFFFFF)
-		//	reg[r3] = uint32(sum)
-		//case ADDC:
-		//	var C uint64
-		//	if carry {
-		//		C = 1
-		//	}
-		//	sum := uint64(reg[r1]) + uint64(reg[r2]) + C
-		//	carry = (sum > 0xFFFFFFFF)
-		//	reg[r3] = uint32(sum)
-		//case SUB:
-		//	reg[r3] = reg[r1] - reg[r2]
-		//case MUL:
-		//	prod := uint64(reg[r1]) * uint64(reg[r2])
-		//	reg[r3] = uint32(prod & 0x00000000FFFFFFFF)
-		//	reg[(r3+1)%MAXREG] = uint32((prod & 0xFFFFFFFF00000000) >> 32)
-		//case DIV:
-		//	reg[r3] = reg[r1] / reg[r2]
-		//	reg[(r3+1)%MAXREG] = reg[r1] % reg[r2]
-		//case SDIV:
-		//	reg[r3] = uint32(int32(reg[r1]) / int32(reg[r2]))
-		//	reg[(r3+1)%MAXREG] = uint32(int32(reg[r1]) % int32(reg[r2]))
-		//case HALT:
-		//	os.Exit(0)
-		//}
+		A := reg[ra]
 
-		//pc++
-		//if pc == MEMWORDS {
-		//	Fatalf("SIGSEGV: pc = %08X", pc)
-		//}
+		var B uint32
+		if ib == 0 {
+			B = reg[rb]
+		} else {
+			B = iv
+		}
+
+		var C uint32
+		switch op {
+		default:
+			Fatalf("SIGILL pc:%08X opcode:%d\n", op)
+		case LOAD:
+			C = load(A + B)
+		case STORE:
+			store(B, A)
+			C = A - 1
+		case AND:
+			C = A & B
+		case OR:
+			C = A | B
+		case XOR:
+			C = A ^ B
+		case ADD:
+			sum := uint64(A) + uint64(B)
+			carry = (sum > 0xFFFFFFFF)
+			C = uint32(sum)
+		case ADDC:
+			var c uint64
+			if carry {
+				c = 1
+			}
+			sum := uint64(A) + uint64(B) + c
+			carry = (sum > 0xFFFFFFFF)
+			C = uint32(sum)
+		case SUB:
+			C = A - B
+		case MUL:
+			prod := uint64(A) * uint64(B)
+			C = uint32(prod & 0x00000000FFFFFFFF)
+			reg[OVERFLOWREG] = uint32((prod & 0xFFFFFFFF00000000) >> 32)
+		case DIV:
+			C = A / B
+			reg[OVERFLOWREG] = A % B
+		case SDIV:
+			C = uint32(int32(A) / int32(B))
+			reg[OVERFLOWREG] = uint32(int32(A) % int32(B))
+		}
+
+		// TODO: check max rc
+		if status[wb] {
+			reg[rc] = C
+		}
+
+		// compare?
+		if c_ != 0 {
+			status[LT] = (C < 0)
+			status[GE] = (C >= 0)
+			status[ZERO] = (C == 0)
+			status[NZ] = (C != 0)
+		}
 	}
 }
 
 // load word form data region, prevent access to instructions
-func load(addr uint16) uint32 {
+func load(addr uint32) uint32 {
 	//if addr < datastart {
 	//	Fatalf("SIGSEGV: attempt to load code as data: pc%08X: load %08X (<%08X)", pc, addr, datastart)
 	//}
@@ -153,11 +134,15 @@ func load(addr uint16) uint32 {
 }
 
 // store word to data region, prevent access to instructions
-func store(v uint32, addr uint16) {
+func store(addr uint32, v uint32) {
 	//if addr < datastart {
 	//	Fatalf("SIGSEGV: attempt to overwrite code: pc%08X: store %08X (<%08X)", pc, addr, datastart)
 	//}
-	mem[addr] = v
+	if addr == PERI_DISPLAY {
+		fmt.Println(v)
+	} else {
+		mem[addr] = v
+	}
 }
 
 // load instruction, prevent executing data region
