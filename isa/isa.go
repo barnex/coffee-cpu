@@ -7,8 +7,8 @@ import (
 
 // Machine properties
 const (
-	CODEWORDS    = 1 << 12    // available number of instruction words
-	MEMWORDS     = 1 << 12    // available number of data words
+	INSTR_WORDS  = 1 << 12    // available number of instruction words
+	MEM_WORDS    = 1 << 12    // available number of data words
 	NREG         = 16         // number of registers
 	MAXREG       = NREG - 1   // highest register for RA, RC
 	MAXREGB      = MAXREG - 2 // highest register for RB
