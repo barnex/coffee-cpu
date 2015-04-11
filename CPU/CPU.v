@@ -2,7 +2,7 @@ module CPU(
     output reg	[31:0]dataOut,
     input	[31:0]dataIn,
     output reg	dataWrEn,
-    output reg	[15:0]dataAddress,
+    output reg	[13:0]dataAddress,
     input	[31:0]instructionIn,
     output wire [11:0]instructionAddress,
     output reg	[7:0]cpuStatus,
@@ -167,7 +167,7 @@ always @(posedge clk) begin
 		endcase
 
 		if(Imb == 1'b1)
-		    Bval <= { {18{1'b0}}, Imm};
+		    Bval <= { {18{Imm[13]}}, Imm};
 		else
 		    if( Rb < 4'hE )
 			Bval <= r[Rb];
@@ -180,13 +180,13 @@ always @(posedge clk) begin
 		case (Opc)
 		    `LOAD: begin
 			// Write out the address (r[Ra]/pc/overflow + r[Rb]/Imm)
-			dataAddress <= targetDataAddress[15:0];
+			dataAddress <= targetDataAddress[13:0];
 			// We will not be writing, but reading in a value
 			dataWrEn    <= 1'b0;
 		    end
 		    `STORE: begin
 			// Write out the address
-			dataAddress <= Bval[15:0];
+			dataAddress <= Bval[13:0];
 			// Write out the data;
 			dataOut	    <= Aval;
 			// Enable writing

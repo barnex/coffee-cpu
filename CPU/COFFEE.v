@@ -8,7 +8,7 @@ module COFFEE(input CLOCK_50,
 
 wire [11:0] instructionAddress;
 wire [31:0] instruction;
-wire [15:0] dataAddress;
+wire [13:0] dataAddress;
 wire [31:0] writeData;
 wire [31:0] readData;
 wire dataWrEn;
