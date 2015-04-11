@@ -37,12 +37,26 @@ module CPU(
 `define HALT	    8'h5
 
 // Decode/demux of the instruction 
-reg [3:0]Ra, Rb, Rc, Rc2, Rc3;
-reg Imb, Cmp, Cmp2, Cmp3;
-reg [13:0] Imm;
-reg [4:0] Opc, Opc2, Opc3;
-reg [2:0] Cond, Cond2, Cond3;
+wire [3:0]Ra, Rb, Rc, Rc2;
+reg [3:0] Rc3;
+wire Imb, Cmp, Cmp2; 
+reg Cmp3;
+wire [13:0] Imm;
+wire [4:0] Opc, Opc2; 
+reg [4:0]Opc3;
+wire [2:0] Cond, Cond2;
+reg [2:0] Cond3;
 
+reg rst;
+
+Fetch fetch(instructionIn, clk, rst,
+    Imb, Ra, Rb, Imm, Opc, Rc, Cond, Cmp);
+
+Decode decode( Ra, Rb, Imb, Imm, Opc, Rc, Cond, Cmp,
+    r, overflow, pc,
+    clk, rst,
+    Aval, Bval, 
+    Opc2, Rc2, Cond2, Cmp2 );
 
 // Following are registers used by the CPU
 // PC is the program counter, mapped to the instruction address
@@ -158,44 +172,12 @@ always @(posedge clk) begin
 	case(state)
 	    `FETCH: begin
 		cpuStatus <= 8'h01;
-		Imb  <= instructionIn[31];
-		Ra   <= instructionIn[30:27];
-		Rb   <= instructionIn[26:23];
-		Imm  <= instructionIn[26:13];
-		Opc  <= instructionIn[12:8];
-		Rc   <= instructionIn[7:4];
-		Cond <= instructionIn[3:1];
-		Cmp  <= instructionIn[0];
 
 /*
 		state <= `DECODE;
 	    end
 	    `DECODE: begin
 */
-		case(Ra)
-		    4'hE: begin
-			Aval <= pc;
-		    end
-		    4'hF: begin
-			Aval <= overflow;
-		    end
-		    default: begin
-			Aval <= r[Ra];
-		    end
-		endcase
-
-		if(Imb == 1'b1)
-		    Bval <= { {18{Imm[13]}}, Imm};
-		else
-		    if( Rb < 4'hE )
-			Bval <= r[Rb];
-		    else
-			Bval <= 32'h0;
-
-		Opc2	<= Opc;
-		Rc2	<= Rc;
-		Cmp2	<= Cmp;
-		Cond2	<= Cond;
 
 /*
 		state <= `EXECUTE;
@@ -278,8 +260,7 @@ always @(posedge clk) begin
 		// pipeline
 		if(Rc3 == 4'hE && ((Opc3 == `LOAD) || (writeBackEnable == 1'b1))) begin
 		    state <= `FLUSH;	
-		    Cond	<= `NEVER;
-		    Cond2	<= `NEVER;
+		    rst <= 1'b1;
 		    Cond3	<= `NEVER;
 		end else
 		    state <= `FETCH;
@@ -289,24 +270,11 @@ always @(posedge clk) begin
 	    // new instruction is available, we will not load it, because this
 	    // is done with the `FETCH state (`EXECUTE in pipeline mode)
 	    `FLUSH: begin
-		Imb	<= 0;
-		Ra	<= 0;
-		Rb	<= 0;
-		Imm	<= 0;
-		Opc	<= 0;
-		Opc2	<= 0;
+		rst <= 1'b0;
 		Opc3	<= 0;
-		Rc	<= 0;
-		Rc2	<= 0;
 		Rc3	<= 0;
-		Cond	<= `NEVER;
-		Cond2	<= `NEVER;
 		Cond3	<= `NEVER;
-		Cmp	<= 0;
-		Cmp2	<= 0;
 		Cmp3	<= 0;
-		Aval	<= 0;
-		Bval	<= 0;
 		ALUStatusOut3 <= 0;
 		ALUOut3	<= 0;
 		
