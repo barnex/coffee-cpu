@@ -37,11 +37,11 @@ module CPU(
 `define HALT	    8'h5
 
 // Decode/demux of the instruction 
-reg [3:0]Ra, Rb, Rc;
-reg Imb, Cmp;
+reg [3:0]Ra, Rb, Rc, Rc2, Rc3;
+reg Imb, Cmp, Cmp2, Cmp3;
 reg [13:0] Imm;
-reg [4:0] Opc;
-reg [2:0] Cond;
+reg [4:0] Opc, Opc2, Opc3;
+reg [2:0] Cond, Cond2, Cond3;
 
 
 // Following are registers used by the CPU
@@ -82,8 +82,12 @@ ALU alu(ALUInA, ALUInB, Opc, ALUStatus, ALUStatusOut, ALUOut, ALUOverflow);
 assign ALUInA = Aval;
 assign ALUInB = Bval;
 
+reg [31:0] ALUOut3;
+reg [7:0] ALUStatusOut3;
+
+
 always @(*) begin
-    case(Cond)
+    case(Cond3)
 	`ALWAYS: begin
 	    writeBackEnable = 1'b1;
 	end
@@ -122,7 +126,7 @@ end
 
 always @(posedge clk) begin
     if(nRst) begin
-	if(Opc == `STORE && state == `EXECUTE)
+	if(Opc2 == `STORE)// && state == `EXECUTE)
 	    dataWrEn <= 1'b1;
 	else
 	    dataWrEn <= 1'b0;
@@ -163,9 +167,11 @@ always @(posedge clk) begin
 		Cond <= instructionIn[3:1];
 		Cmp  <= instructionIn[0];
 
+/*
 		state <= `DECODE;
 	    end
 	    `DECODE: begin
+*/
 		case(Ra)
 		    4'hE: begin
 			Aval <= pc;
@@ -186,10 +192,17 @@ always @(posedge clk) begin
 		    else
 			Bval <= 32'h0;
 
+		Opc2	<= Opc;
+		Rc2	<= Rc;
+		Cmp2	<= Cmp;
+		Cond2	<= Cond;
+
+/*
 		state <= `EXECUTE;
 	    end
 	    `EXECUTE: begin
-		case (Opc)
+*/
+		case (Opc2)
 		    `LOAD: begin
 			// Write out the address (r[Ra]/pc/overflow + r[Rb]/Imm)
 			dataAddress <= targetDataAddress[13:0];
@@ -203,19 +216,29 @@ always @(posedge clk) begin
 			// Enable writing
 		    end
 		endcase
+    
+		Opc3		<= Opc2;
+		Rc3		<= Rc2;
+		Cmp3		<= Cmp2;
+		Cond3		<= Cond2;
+		ALUOut3		<= ALUOut;
+		ALUStatusOut3	<= ALUStatusOut;
 
 		// Remember that parallel to these LOAD/STORE operations,
 		// Aval and Bval are racing through the ALU
-
+/*
 		state <= `WRITEBACK;
 	    end
 	    `WRITEBACK: begin
-		if( Cmp == 1'b1 ) begin
-		    ALUStatus <= ALUStatusOut;
+*/
+		if( Cmp3 == 1'b1 ) begin
+		    ALUStatus <= ALUStatusOut3;
 		end
 
-		if( Opc == `LOAD ) begin
-		    case(Rc)
+		// Before writing anything away, we have to check we are not
+		// dealing with a NOP
+		if( Opc3 == `LOAD && Opc3 != 5'h0 ) begin
+		    case(Rc3)
 			4'hE: begin
 			    pc		<= dataIn[11:0];
 			end
@@ -224,33 +247,36 @@ always @(posedge clk) begin
 			    pc		<= pc + 12'h1;
 			end
 			default: begin
-			    r[Rc]	<= dataIn;
+			    r[Rc3]	<= dataIn;
 			    pc		<= pc + 12'h1;
 			end
 		    endcase
-		end else begin
+		end else if( Opc3 != 5'h0) begin
 		    if( writeBackEnable == 1'b1 ) begin
-			case(Rc)
+			case(Rc3)
 			    4'hE: begin
-				pc	    <= ALUOut[11:0];
+				pc	    <= ALUOut3[11:0];
 			    end
 			    4'hF: begin
-				overflow    <= ALUOut;
+				overflow    <= ALUOut3;
 				pc	    <= pc + 12'h1;
 			    end
 			    default: begin
-				r[Rc]	    <= ALUOut;
+				r[Rc3]	    <= ALUOut3;
 				pc	    <= pc + 12'h1;
 			    end
 			endcase
 		    end else begin
 			pc  <= pc + 12'h1;
 		    end
+		// NOP's only increase the program counter
+		end else begin
+		    pc	    <= pc + 12'h1;
 		end
 
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
-		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1)))
+		if(Rc3 == 4'hE && ((Opc3 == `LOAD) || (writeBackEnable == 1'b1)))
 		    state <= `FLUSH;	
 		else
 		    state <= `FETCH;
@@ -260,18 +286,28 @@ always @(posedge clk) begin
 	    // new instruction is available, we will not load it, because this
 	    // is done with the `FETCH state (`EXECUTE in pipeline mode)
 	    `FLUSH: begin
-		Imb  <= 0;
-		Ra   <= 0;
-		Rb   <= 0;
-		Imm  <= 0;
-		Opc  <= 0;
-		Rc   <= 0;
-		Cond <= 0;
-		Cmp  <= 0;
-		Aval <= 0;
-		Bval <= 0;
+		Imb	<= 0;
+		Ra	<= 0;
+		Rb	<= 0;
+		Imm	<= 0;
+		Opc	<= 0;
+		Opc2	<= 0;
+		Opc3	<= 0;
+		Rc	<= 0;
+		Rc2	<= 0;
+		Rc3	<= 0;
+		Cond	<= 0;
+		Cond2	<= 0;
+		Cond3	<= 0;
+		Cmp	<= 0;
+		Cmp2	<= 0;
+		Cmp3	<= 0;
+		Aval	<= 0;
+		Bval	<= 0;
+		ALUStatusOut3 <= 0;
+		ALUOut3	<= 0;
 		
-		state <= `FETCH;
+		state	<= `FETCH;
 	    end
 	    `HALT: begin
 		cpuStatus <= 8'h04;
