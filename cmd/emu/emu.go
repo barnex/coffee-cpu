@@ -21,132 +21,112 @@ var (
 
 // Machine state
 var (
-	pc        uint16           // program counter
-	reg       [NREG]uint32     // registers
-	carry     bool             // carry flag
-	mem       [MEMWORDS]uint32 // memory
-	datastart uint16           // memory address of first writable data word (end of instructions)
-	disp      uint32           // data register for display peripheral
+	reg    [NREG]uint32        // registers
+	instr  [INSTR_WORDS]uint32 // memory
+	mem    [MEM_WORDS]uint32   // memory
+	carry  bool                // carry flag
+	status [8]bool
+	disp   uint32 // data register for display peripheral
 )
+
+func init() {
+	status[NEVER] = false
+	status[ALWAYS] = true
+}
 
 func Run() {
 	for {
-		// fetch
-		instr := fetch(pc)
 
-		// decode
-		op := uint8((instr & 0xFF000000) >> 24)
-		r1 := uint8((instr & 0x00FF0000) >> 16)
-		r2 := uint8((instr & 0x0000FF00) >> 8)
-		r3 := uint8((instr & 0x000000FF))
-		addr := uint16(instr & 0x0000FFFF)
+		instr := fetch(reg[PCREG])
+
+		reg[PCREG]++
+
+		ib := GetBits(instr, IB, IB)
+		ra := GetBits(instr, RAl, RAh)
+		rb := GetBits(instr, RBl, RBh)
+		iv := GetBits(instr, ILl, RBh)
+		op := GetBits(instr, OPl, OPh)
+		rc := GetBits(instr, RCl, RCh)
+		wb := GetBits(instr, WCl, WCh)
+		c_ := GetBits(instr, CMP, CMP)
 
 		// debug
 		if *flagTrace {
-			switch {
-			default:
-				fmt.Printf("(%08X:%08X):% 8s %06X\n", pc, mem[pc], OpStr(op), uint32(op)&0x00FFFFFF)
-			case IsRegAddr(op):
-				PrintRA(pc, op, r1, addr)
-			case IsReg2(op):
-				PrintR2(pc, op, r1, r2)
-			case IsReg3(op):
-				PrintR3(pc, op, r1, r2, r3)
+			B := fmt.Sprintf("R%v", rb)
+			if ib != 0 {
+				B = fmt.Sprint(iv)
 			}
+			B = fmt.Sprintf("% 5s", B)
+			fmt.Printf("%032b:% 5s R%v %s %v R%v %v\n", instr, OpcodeStr[op], ra, B, CondStr[wb], rc, c_)
 		}
 
-		// execute
+		A := reg[ra]
+
+		var B uint32
+		if ib == 0 {
+			B = reg[rb]
+		} else {
+			B = iv
+		}
+
+		var C uint32
 		switch op {
 		default:
-			Fatalf("SIGILL pc:%08X opcode:%d\n", pc, op)
-		//case NOP: // nop
+			Fatalf("SIGILL pc:%08X opcode:%d\n", op)
 		case LOAD:
-			reg[r3] = mem[reg[r1]+reg[r2]]
+			C = load(A + B)
 		case STORE:
-			mem[reg[r1]+reg[r2]] = reg[r3]
-		case LOADI:
-			reg[r1] = load(addr)
-		case STORI:
-			if addr == PERI_DISPLAY {
-				display(reg[r1])
-			} else {
-				store(reg[r1], addr)
-			}
-		case LOADLI:
-			v := reg[r1]
-			v = (v & 0xFFFF0000) | uint32(addr)
-			reg[r1] = v
-		case LOADHI:
-			v := reg[r1]
-			v = (v & 0x0000FFFF) | (uint32(addr) << 16)
-			reg[r1] = v
-		case LOADLISE:
-			var sign uint32
-			if (addr & 0x8000) != 0 {
-				sign = 0xFFFF0000
-			}
-			reg[r1] = sign | uint32(addr)
-		case JUMPZ:
-			if reg[r1] == 0 {
-				pc = addr - 1
-			}
-		case JUMPNZ:
-			if reg[r1] != 0 {
-				pc = addr - 1
-			}
-		case JUMPLT:
-			if int32(reg[r1]) < 0 {
-				pc = addr - 1
-			}
-		case JUMPGTE:
-			if int32(reg[r1]) >= 0 {
-				pc = addr - 1
-			}
-		case MOV: // deprecated
-			reg[r2] = reg[r1]
+			store(B, A)
+			C = A - 1
 		case AND:
-			reg[r3] = reg[r1] & reg[r2]
+			C = A & B
 		case OR:
-			reg[r3] = reg[r1] | reg[r2]
+			C = A | B
 		case XOR:
-			reg[r3] = reg[r1] ^ reg[r2]
+			C = A ^ B
 		case ADD:
-			sum := uint64(reg[r1]) + uint64(reg[r2])
+			sum := uint64(A) + uint64(B)
 			carry = (sum > 0xFFFFFFFF)
-			reg[r3] = uint32(sum)
+			C = uint32(sum)
 		case ADDC:
-			var C uint64
+			var c uint64
 			if carry {
-				C = 1
+				c = 1
 			}
-			sum := uint64(reg[r1]) + uint64(reg[r2]) + C
+			sum := uint64(A) + uint64(B) + c
 			carry = (sum > 0xFFFFFFFF)
-			reg[r3] = uint32(sum)
+			C = uint32(sum)
 		case SUB:
-			reg[r3] = reg[r1] - reg[r2]
+			C = A - B
 		case MUL:
-			prod := uint64(reg[r1]) * uint64(reg[r2])
-			reg[r3] = uint32(prod & 0x00000000FFFFFFFF)
-			reg[(r3+1)%MAXREG] = uint32((prod & 0xFFFFFFFF00000000) >> 32)
+			prod := uint64(A) * uint64(B)
+			C = uint32(prod & 0x00000000FFFFFFFF)
+			reg[OVERFLOWREG] = uint32((prod & 0xFFFFFFFF00000000) >> 32)
 		case DIV:
-			reg[r3] = reg[r1] / reg[r2]
-			reg[(r3+1)%MAXREG] = reg[r1] % reg[r2]
+			C = A / B
+			reg[OVERFLOWREG] = A % B
 		case SDIV:
-			reg[r3] = uint32(int32(reg[r1]) / int32(reg[r2]))
-			reg[(r3+1)%MAXREG] = uint32(int32(reg[r1]) % int32(reg[r2]))
-		case HALT:
-			os.Exit(0)
+			C = uint32(int32(A) / int32(B))
+			reg[OVERFLOWREG] = uint32(int32(A) % int32(B))
 		}
 
-		pc++
-		if pc == MEMWORDS {
-			Fatalf("SIGSEGV: pc = %08X", pc)
+		// TODO: check max rc
+		if status[wb] {
+			reg[rc] = C
+		}
+
+		// compare?
+		if c_ != 0 {
+			status[LT] = (C < 0)
+			status[GE] = (C >= 0)
+			status[ZERO] = (C == 0)
+			status[NZ] = (C != 0)
 		}
 	}
 }
 
 // load word form data region, prevent access to instructions
-func load(addr uint16) uint32 {
+func load(addr uint32) uint32 {
 	//if addr < datastart {
 	//	Fatalf("SIGSEGV: attempt to load code as data: pc%08X: load %08X (<%08X)", pc, addr, datastart)
 	//}
@@ -154,55 +134,56 @@ func load(addr uint16) uint32 {
 }
 
 // store word to data region, prevent access to instructions
-func store(v uint32, addr uint16) {
+func store(addr uint32, v uint32) {
 	//if addr < datastart {
 	//	Fatalf("SIGSEGV: attempt to overwrite code: pc%08X: store %08X (<%08X)", pc, addr, datastart)
 	//}
-	mem[addr] = v
+	if addr == PERI_DISPLAY {
+		fmt.Println(v)
+	} else {
+		mem[addr] = v
+	}
 }
 
 // load instruction, prevent executing data region
-func fetch(addr uint16) uint32 {
-	if addr == datastart {
-		os.Exit(0)
-	}
+func fetch(addr uint32) uint32 {
 	//if addr >= datastart {
 	//	Fatalf("SIGSEGV: control enters data region: pc%08X: fetch %08X (>=%08X)", pc, addr, datastart)
 	//}
 	return mem[addr]
 }
 
-func debug(pc uint16, op uint8, args ...interface{}) {
-	fmt.Fprintf(os.Stdout, "(%08X):% 8s ", pc, OpStr(op))
-	for _, a := range args {
-		switch a := a.(type) {
-		default:
-			fmt.Fprint(os.Stdout, " ", a)
-		case uint8:
-			fmt.Fprint(os.Stdout, " R", a)
-		case uint16:
-			fmt.Fprintf(os.Stdout, " %08X", a)
-		}
-	}
-	fmt.Fprintln(os.Stdout)
-}
+//func debug(pc uint16, op uint8, args ...interface{}) {
+//	fmt.Fprintf(os.Stdout, "(%08X):% 8s ", pc, OpStr(op))
+//	for _, a := range args {
+//		switch a := a.(type) {
+//		default:
+//			fmt.Fprint(os.Stdout, " ", a)
+//		case uint8:
+//			fmt.Fprint(os.Stdout, " R", a)
+//		case uint16:
+//			fmt.Fprintf(os.Stdout, " %08X", a)
+//		}
+//	}
+//	fmt.Fprintln(os.Stdout)
+//}
 
 func Fatalf(f string, msg ...interface{}) {
 	panic(fmt.Sprintf(f, msg...))
 	//os.Exit(2)
 }
 
-func PrintRA(pc uint16, op uint8, r1 uint8, a uint16) {
-	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) %08X\n", pc, mem[pc], OpStr(op), r1, reg[r1], a)
-}
-
-func PrintR2(pc uint16, op uint8, r1, r2 uint8) {
-	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) R%d\n", pc, mem[pc], OpStr(op), r1, reg[r1], r2)
-}
-
-func PrintR3(pc uint16, op uint8, r1, r2, r3 uint8) {
-	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) R%d(=%08X) R%d\n", pc, mem[pc], OpStr(op), r1, reg[r1], r2, reg[r2], r3)
-}
+//func PrintRA(pc uint16, op uint8, r1 uint8, a uint16) {
+//	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) %08X\n", pc, mem[pc], OpStr(op), r1, reg[r1], a)
+//}
+//
+//func PrintR2(pc uint16, op uint8, r1, r2 uint8) {
+//	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) R%d\n", pc, mem[pc], OpStr(op), r1, reg[r1], r2)
+//}
+//
+//func PrintR3(pc uint16, op uint8, r1, r2, r3 uint8) {
+//	fmt.Printf("(%08X:%08X):% 8s R%d(=%08X) R%d(=%08X) R%d\n", pc, mem[pc], OpStr(op), r1, reg[r1], r2, reg[r2], r3)
+//}
 
 func display(v uint32) {
 	disp = v
@@ -219,13 +200,10 @@ func main() {
 	defer f.Close()
 	in := bufio.NewReader(f)
 
-	fmt.Println("memory: ", MEMWORDS, " words")
+	//fmt.Println("memory: ", MEMWORDS, " words")
 
 	for addr, v, ok := ParseLine(in); ok; addr, v, ok = ParseLine(in) {
 		mem[addr] = v
-		if addr >= datastart {
-			datastart = addr + 1
-		}
 	}
 
 	Run()
@@ -244,7 +222,7 @@ func ParseLine(in *bufio.Reader) (addr uint16, instruction uint32, ok bool) {
 
 func Fatal(msg ...interface{}) {
 	m := fmt.Sprint(msg...)
-	log.Fatal(m, " pc=", pc-1)
+	log.Fatal(m)
 }
 
 func Check(err error) {

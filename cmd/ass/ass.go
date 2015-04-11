@@ -38,22 +38,21 @@ func Assemble(in io.Reader, out io.Writer) {
 			if len(words) != 6 {
 				Err("need 5 operands")
 			}
-			opca := ParseOpcode(words[0])
-			rega := ParseReg(transl(words[1]))
-			immb, regb, immv := ParseBVal(transl(words[2]))
+			opc := ParseOpcode(words[0])
+			ra := ParseReg(transl(words[1]))
+			immb, rb, imml := ParseBVal(transl(words[2]))
 			cond := ParseCond(words[3])
-			regc := ParseReg(transl(words[4]))
+			rc := ParseReg(transl(words[4]))
 			comp := ParseCmp(words[5])
 
-			bits = (immb << isa.ImmB) |
-				(rega << isa.RegA) |
-				(regb << isa.RegB) |
-				(immv << isa.ImmL) |
-				(opca << isa.Opc) |
-				(regc << isa.RegC) |
-				(cond << isa.Cond) |
-				(comp << isa.Comp)
-
+			bits = isa.SetBits(bits, isa.IB, isa.IB, immb)
+			bits = isa.SetBits(bits, isa.RAl, isa.RAh, ra)
+			bits = isa.SetBits(bits, isa.RBl, isa.RBh, rb)
+			bits = isa.SetBits(bits, isa.ILl, isa.ILh, imml)
+			bits = isa.SetBits(bits, isa.OPl, isa.OPh, opc)
+			bits = isa.SetBits(bits, isa.RCl, isa.RCh, rc)
+			bits = isa.SetBits(bits, isa.WCl, isa.WCh, cond)
+			bits = isa.SetBits(bits, isa.CMP, isa.CMP, comp)
 		}
 		fmt.Printf("%032b\n", bits)
 		ihex.WriteUint32(out, pc, bits)
@@ -81,6 +80,13 @@ func ParseCond(x string) uint32 {
 }
 
 func ParseReg(x string) uint32 {
+	if x == "PC" {
+		return isa.PCREG
+	}
+	if x == "Rx" {
+		return isa.OVERFLOWREG
+	}
+
 	r := transl(x)
 	if !strings.HasPrefix(r, "R") {
 		Err("expected register, got: ", r)
@@ -89,6 +95,12 @@ func ParseReg(x string) uint32 {
 	rN, err := strconv.Atoi(r)
 	if err != nil {
 		Err("malformed register name: R", r)
+	}
+	if rN == isa.PCREG {
+		Err("the program counter is explictly called PC")
+	}
+	if rN == isa.OVERFLOWREG {
+		Err("the overflow register is explictly called Rx")
 	}
 	if rN > isa.MAXREG || rN < 0 {
 		Err("no such register: R", r)
@@ -120,15 +132,10 @@ func ParseCmp(x string) uint32 {
 	}
 }
 
-func ParseInt(x string, bits uint) uint32 {
-	v_, err := strconv.ParseInt(x, 0, 64)
+func ParseInt(x string, bits uint8) uint32 {
+	v, err := isa.ParseInt(x, bits)
 	if err != nil {
 		Err(err)
-	}
-	v := uint32(v_)
-	max := uint32((1 << bits) - 1)
-	if v > max {
-		Err("value ", v_, " overflows ", bits, "bit (=", max, ")")
 	}
 	return v
 }
