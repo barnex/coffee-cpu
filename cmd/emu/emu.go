@@ -64,7 +64,7 @@ func Run() {
 		var C uint32
 		switch op {
 		default:
-			Fatalf("SIGILL pc:%08X opcode:%d\n", op)
+			Fatalf("SIGILL: opcode:%d\n", op)
 		case LOAD:
 			C = load(A + B)
 		case STORE:
@@ -113,31 +113,35 @@ func Run() {
 		debug_cmp := false
 		if c_ != 0 {
 			debug_cmp = true
-			status[LT] = (C < 0)
-			status[GE] = (C >= 0)
-			status[ZERO] = (C == 0)
-			status[NZ] = (C != 0)
+			status[LT] = (int32(C) < 0)
+			status[GE] = (int32(C) >= 0)
+			status[ZERO] = (int32(C) == 0)
+			status[NZ] = (int32(C) != 0)
 		}
 
 		// debug
 		if *flagTrace {
-			B := fmt.Sprintf("R%v(%v)", rb, debug_rb)
+			da := fmt.Sprintf("R%v(%v)", ra, int32(debug_ra))
+			db := fmt.Sprintf("R%v(%v)", rb, int32(debug_rb))
+			dc := fmt.Sprintf("R%v(%v)", rc, int32(reg[rc]))
 			if ib != 0 {
-				B = fmt.Sprint(iv)
+				db = fmt.Sprint(iv)
 			}
-			B = fmt.Sprintf("% 5s", B)
-			debug_comp := ""
+
+			comp := ""
 			if debug_cmp {
-				debug_comp = "+cmp="
-				for i := uint32(2); i < 8; i++ {
+				comp = fmt.Sprintf("+cmp:%v=", int32(C))
+				for i := uint32(0); i < 8; i++ {
 					if status[i] {
-						debug_comp += fmt.Sprint(" ", CondStr[i])
+						comp += fmt.Sprint(" ", CondStr[i])
 					}
 				}
 			}
-			fmt.Printf("% 5s R%v(%v) %s %v(%v) R%v(%v) %v\n", OpcodeStr[op], ra, debug_ra, B, CondStr[wb], debug_wb, rc, reg[rc], debug_comp)
-		}
 
+			WB := fmt.Sprint(CondStr[wb], "(", debug_wb, ")")
+
+			fmt.Printf("% 5s % 7s % 7s % 7s % 9s %v\n", OpcodeStr[op], da, db, WB, dc, comp)
+		}
 	}
 }
 
