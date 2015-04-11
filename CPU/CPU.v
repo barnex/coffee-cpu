@@ -78,7 +78,7 @@ assign targetDataAddress = Aval + Bval;
 
 wire [31:0] ALUInA, ALUInB, ALUOut, ALUOverflow; 
 wire [7:0] ALUStatusOut;
-ALU alu(ALUInA, ALUInB, Opc, ALUStatus, ALUStatusOut, ALUOut, ALUOverflow);
+ALU alu(ALUInA, ALUInB, Opc2, ALUStatus, ALUStatusOut, ALUOut, ALUOverflow);
 assign ALUInA = Aval;
 assign ALUInB = Bval;
 
@@ -276,9 +276,12 @@ always @(posedge clk) begin
 
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
-		if(Rc3 == 4'hE && ((Opc3 == `LOAD) || (writeBackEnable == 1'b1)))
+		if(Rc3 == 4'hE && ((Opc3 == `LOAD) || (writeBackEnable == 1'b1))) begin
 		    state <= `FLUSH;	
-		else
+		    Cond	<= `NEVER;
+		    Cond2	<= `NEVER;
+		    Cond3	<= `NEVER;
+		end else
 		    state <= `FETCH;
 
 	    end
@@ -296,9 +299,9 @@ always @(posedge clk) begin
 		Rc	<= 0;
 		Rc2	<= 0;
 		Rc3	<= 0;
-		Cond	<= 0;
-		Cond2	<= 0;
-		Cond3	<= 0;
+		Cond	<= `NEVER;
+		Cond2	<= `NEVER;
+		Cond3	<= `NEVER;
 		Cmp	<= 0;
 		Cmp2	<= 0;
 		Cmp3	<= 0;
