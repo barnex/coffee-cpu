@@ -1,3 +1,4 @@
+/*
 The CPU has three states of operation and one reset state;
 The first state of operation if FETCH/EXECUTE which is the active state and will be described in great detail below.
 The second state is FLUSH, which flushes all registers after a write to PC
@@ -13,9 +14,11 @@ The FETCH/EXECUTE state are four cycles which are pipelined:
 	! The ALU depends on Aval and Bval of the previous stage, as well as the value of ALUStatus
 	at the previous state.
     - WRITEBACK: Updates the ALUStatus (using the ALUstatus that was saved the previous cycle) depending in the Cmp-bit.
-	Also writes to PC or updates PC -> PC+1. Data is read from memory as well. 
+	Also writes to PC or updates PC -> PC+1. Data is read from memory as well.
 
 In pipelined mode, the CPU flushes all its intermediate registers after a write to PC, by jumping to the FLUSH state.
 Operations directly following a PC write are executed, but can never write, due to this jump to the FLUSH state.
-When using relative jumps, take into account that reading from Ra=PC is off by 2 when the jump will take place, i.e. the time 
+When using relative jumps, take into account that reading from Ra=PC is off by 2 when the jump will take place, i.e. the time
 difference between DECODE and WRITEBACK.
+*/
+package isa
