@@ -1,8 +1,8 @@
 module CPU(
-    output reg	[31:0]dataOut,
+    output	[31:0]dataOut,
     input	[31:0]dataIn,
     output reg	dataWrEn,
-    output reg	[13:0]dataAddress,
+    output	[13:0]dataAddress,
     input	[31:0]instructionIn,
     output wire [11:0]instructionAddress,
     output reg	[7:0]cpuStatus,
@@ -37,15 +37,11 @@ module CPU(
 `define HALT	    8'h5
 
 // Decode/demux of the instruction 
-wire [3:0]Ra, Rb, Rc, Rc2;
-reg [3:0] Rc3;
-wire Imb, Cmp, Cmp2; 
-reg Cmp3;
+wire [3:0]Ra, Rb, Rc, Rc2, Rc3;
+wire Imb, Cmp, Cmp2, Cmp3; 
 wire [13:0] Imm;
-wire [4:0] Opc, Opc2; 
-reg [4:0]Opc3;
-wire [2:0] Cond, Cond2;
-reg [2:0] Cond3;
+wire [4:0] Opc, Opc2, Opc3; 
+wire [2:0] Cond, Cond2, Cond3;
 
 reg rst;
 
@@ -57,6 +53,18 @@ Decode decode( Ra, Rb, Imb, Imm, Opc, Rc, Cond, Cmp,
     clk, rst,
     Aval, Bval, 
     Opc2, Rc2, Cond2, Cmp2 );
+
+Execute execute(
+    Aval, Bval, ALUStatus,
+    Opc2, Rc2, Cmp2, Cond2,
+    clk, rst,
+    ALUStatusOut3, ALUOut3, ALUOverflow3,
+    dataAddress, dataOut,
+    Opc3, Rc3, Cmp3, Cond3);
+
+wire [7:0] ALUStatusOut3;
+wire [31:0] ALUOut3;
+wire [31:0] ALUOverflow3;
 
 // Following are registers used by the CPU
 // PC is the program counter, mapped to the instruction address
@@ -80,25 +88,11 @@ assign instructionAddress = pc;
 
 // The decoded value of Rb, which can be an immediate value or a register
 // (r-series only, not PC or overflow)
-reg [31:0] Bval;
+wire [31:0] Bval;
 
 // The decoded value of Ra, which can be a register value (r-series)
 // or the value of PC or overflow
-reg [31:0] Aval;
-
-// The data address decoded from Aval and Bval
-wire [32:0] targetDataAddress;
-assign targetDataAddress = Aval + Bval;
-
-wire [31:0] ALUInA, ALUInB, ALUOut, ALUOverflow; 
-wire [7:0] ALUStatusOut;
-ALU alu(ALUInA, ALUInB, Opc2, ALUStatus, ALUStatusOut, ALUOut, ALUOverflow);
-assign ALUInA = Aval;
-assign ALUInB = Bval;
-
-reg [31:0] ALUOut3;
-reg [7:0] ALUStatusOut3;
-
+wire [31:0] Aval;
 
 always @(*) begin
     case(Cond3)
@@ -184,27 +178,6 @@ always @(posedge clk) begin
 	    end
 	    `EXECUTE: begin
 */
-		case (Opc2)
-		    `LOAD: begin
-			// Write out the address (r[Ra]/pc/overflow + r[Rb]/Imm)
-			dataAddress <= targetDataAddress[13:0];
-			// We will not be writing, but reading in a value
-		    end
-		    `STORE: begin
-			// Write out the address
-			dataAddress <= Bval[13:0];
-			// Write out the data;
-			dataOut	    <= Aval;
-			// Enable writing
-		    end
-		endcase
-    
-		Opc3		<= Opc2;
-		Rc3		<= Rc2;
-		Cmp3		<= Cmp2;
-		Cond3		<= Cond2;
-		ALUOut3		<= ALUOut;
-		ALUStatusOut3	<= ALUStatusOut;
 
 		// Remember that parallel to these LOAD/STORE operations,
 		// Aval and Bval are racing through the ALU
@@ -261,7 +234,6 @@ always @(posedge clk) begin
 		if(Rc3 == 4'hE && ((Opc3 == `LOAD) || (writeBackEnable == 1'b1))) begin
 		    state <= `FLUSH;	
 		    rst <= 1'b1;
-		    Cond3	<= `NEVER;
 		end else
 		    state <= `FETCH;
 
@@ -271,13 +243,6 @@ always @(posedge clk) begin
 	    // is done with the `FETCH state (`EXECUTE in pipeline mode)
 	    `FLUSH: begin
 		rst <= 1'b0;
-		Opc3	<= 0;
-		Rc3	<= 0;
-		Cond3	<= `NEVER;
-		Cmp3	<= 0;
-		ALUStatusOut3 <= 0;
-		ALUOut3	<= 0;
-		
 		state	<= `FETCH;
 	    end
 	    `HALT: begin
