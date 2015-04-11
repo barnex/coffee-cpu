@@ -50,17 +50,8 @@ func Run() {
 		wb := GetBits(instr, WCl, WCh)
 		c_ := GetBits(instr, CMP, CMP)
 
-		// debug
-		if *flagTrace {
-			B := fmt.Sprintf("R%v", rb)
-			if ib != 0 {
-				B = fmt.Sprint(iv)
-			}
-			B = fmt.Sprintf("% 5s", B)
-			fmt.Printf("%032b:% 5s R%v %s %v R%v %v\n", instr, OpcodeStr[op], ra, B, CondStr[wb], rc, c_)
-		}
-
 		A := reg[ra]
+		debug_ra := A
 
 		var B uint32
 		if ib == 0 {
@@ -68,6 +59,7 @@ func Run() {
 		} else {
 			B = iv
 		}
+		debug_rb := B
 
 		var C uint32
 		switch op {
@@ -110,18 +102,42 @@ func Run() {
 			reg[OVERFLOWREG] = uint32(int32(A) % int32(B))
 		}
 
+		debug_wb := false
 		// TODO: check max rc
 		if status[wb] {
 			reg[rc] = C
+			debug_wb = true
 		}
 
 		// compare?
+		debug_cmp := false
 		if c_ != 0 {
+			debug_cmp = true
 			status[LT] = (C < 0)
 			status[GE] = (C >= 0)
 			status[ZERO] = (C == 0)
 			status[NZ] = (C != 0)
 		}
+
+		// debug
+		if *flagTrace {
+			B := fmt.Sprintf("R%v(%v)", rb, debug_rb)
+			if ib != 0 {
+				B = fmt.Sprint(iv)
+			}
+			B = fmt.Sprintf("% 5s", B)
+			debug_comp := ""
+			if debug_cmp {
+				debug_comp = "+cmp="
+				for i := uint32(2); i < 8; i++ {
+					if status[i] {
+						debug_comp += fmt.Sprint(" ", CondStr[i])
+					}
+				}
+			}
+			fmt.Printf("% 5s R%v(%v) %s %v(%v) R%v(%v) %v\n", OpcodeStr[op], ra, debug_ra, B, CondStr[wb], debug_wb, rc, reg[rc], debug_comp)
+		}
+
 	}
 }
 
