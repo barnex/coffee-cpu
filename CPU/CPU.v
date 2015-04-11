@@ -34,6 +34,7 @@ module CPU(
 `define EXECUTE	    8'h2
 `define WRITEBACK   8'h3
 `define FLUSH	    8'h4
+`define HALT	    8'h5
 
 // Decode/demux of the instruction 
 reg [3:0]Ra, Rb, Rc;
