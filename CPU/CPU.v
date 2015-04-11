@@ -28,11 +28,12 @@ module CPU(
 `define GE	    3'h4
 `define LT	    3'h5
 
-// Possible levels of the CPU, currently only LEVEL1 & LEVEL2 is in use
+// Possible levels of the CPU
 `define FETCH	    8'h0
 `define DECODE	    8'h1
 `define EXECUTE	    8'h2
 `define WRITEBACK   8'h3
+`define FLUSH	    8'h4
 
 // Decode/demux of the instruction 
 reg [3:0]Ra, Rb, Rc;
@@ -131,7 +132,7 @@ always @(posedge clk) begin
     if( !nRst ) begin
 	// Under reset conditions, everything goes to zero and we go to LEVEL
 	// 1 execution
-	state	    <= `FETCH;
+	state	    <= `FLUSH;
 	pc	    <= 12'h000;
 	r[0]	    <= 32'h0;
 	r[1]	    <= 32'h0;
@@ -147,9 +148,11 @@ always @(posedge clk) begin
 	r[11]	    <= 32'h0;
 	r[12]	    <= 32'h0;
 	r[13]	    <= 32'h0;
+	cpuStatus <= 8'h02;
     end else begin
 	case(state)
 	    `FETCH: begin
+		cpuStatus <= 8'h01;
 		Imb  <= instructionIn[31];
 		Ra   <= instructionIn[30:27];
 		Rb   <= instructionIn[26:23];
@@ -243,7 +246,34 @@ always @(posedge clk) begin
 			pc  <= pc + 12'h1;
 		    end
 		end
+
+		// If we wrote anything to the PC, we need to flush the
+		// pipeline
+		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1)))
+		    state <= `FLUSH;	
+		else
+		    state <= `FETCH;
+
+	    end
+	    // In this state, we simply flush the pipeline, though the correct
+	    // new instruction is available, we will not load it, because this
+	    // is done with the `FETCH state (`EXECUTE in pipeline mode)
+	    `FLUSH: begin
+		Imb  <= 0;
+		Ra   <= 0;
+		Rb   <= 0;
+		Imm  <= 0;
+		Opc  <= 0;
+		Rc   <= 0;
+		Cond <= 0;
+		Cmp  <= 0;
+		Aval <= 0;
+		Bval <= 0;
+		
 		state <= `FETCH;
+	    end
+	    `HALT: begin
+		cpuStatus <= 8'h04;
 	    end
 	endcase
     end
