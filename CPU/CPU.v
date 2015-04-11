@@ -119,12 +119,20 @@ always @(*) begin
 end
 
 always @(posedge clk) begin
+    if(nRst) begin
+	if(Opc == `STORE && state == `EXECUTE)
+	    dataWrEn <= 1'b1;
+	else
+	    dataWrEn <= 1'b0;
+    end
+end
+
+always @(posedge clk) begin
     if( !nRst ) begin
 	// Under reset conditions, everything goes to zero and we go to LEVEL
 	// 1 execution
 	state	    <= `FETCH;
 	pc	    <= 12'h000;
-	dataWrEn    <= 1'b0;
 	r[0]	    <= 32'h0;
 	r[1]	    <= 32'h0;
 	r[2]	    <= 32'h0;
@@ -182,7 +190,6 @@ always @(posedge clk) begin
 			// Write out the address (r[Ra]/pc/overflow + r[Rb]/Imm)
 			dataAddress <= targetDataAddress[13:0];
 			// We will not be writing, but reading in a value
-			dataWrEn    <= 1'b0;
 		    end
 		    `STORE: begin
 			// Write out the address
@@ -190,10 +197,6 @@ always @(posedge clk) begin
 			// Write out the data;
 			dataOut	    <= Aval;
 			// Enable writing
-			dataWrEn    <= 1'b1;
-		    end
-		    default: begin
-			dataWrEn    <= 1'b0;
 		    end
 		endcase
 
@@ -203,9 +206,6 @@ always @(posedge clk) begin
 		state <= `WRITEBACK;
 	    end
 	    `WRITEBACK: begin
-		// If we were storing data, we are no longer
-		dataWrEn    <= 1'b0;
-
 		if( Cmp == 1'b1 ) begin
 		    ALUStatus <= ALUStatusOut;
 		end
