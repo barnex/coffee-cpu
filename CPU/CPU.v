@@ -21,8 +21,8 @@ module CPU(
 `define DIV	    5'hA
 `define SDIV	    5'hB
 
-`define ALWAYS	    3'h0
-`define NEVER	    3'h1
+`define NEVER	    3'h0
+`define ALWAYS	    3'h1
 `define ZERO	    3'h2
 `define NOTZERO	    3'h3
 `define GE	    3'h4

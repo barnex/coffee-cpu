@@ -45,8 +45,8 @@ const (
 // gets written back to register RC, based on status register
 // holding the result of a previous comparison to zero.
 const (
-	ALWAYS = 0 // write Cbus back to RC
-	NEVER  = 1 // don't write back
+	NEVER  = 0 // don't write back
+	ALWAYS = 1 // write Cbus back to RC
 	ZERO   = 2 // write back if last compare was zero
 	NZ     = 3 // write back if last compare was nonzero
 	GE     = 4 // write back if last compare was >= 0
