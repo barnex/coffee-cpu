@@ -6,12 +6,12 @@ module Decode(
 
 
 wire Imb;
-wire [3:0]Ra,
-wire [3:0]Rb,
-wire [13:0]Imm,
-wire [4:0]Opc,
-wire [3:0]Rc,
-wire [2:0]Cond,
+wire [3:0]Ra;
+wire [3:0]Rb;
+wire [13:0]Imm;
+wire [4:0]Opc;
+wire [3:0]Rc;
+wire [2:0]Cond;
 wire Cmp;
 
 assign {Imb, Ra, Imm, Opc, Rc, Cond, Cmp} = instructionDecode;
@@ -22,7 +22,7 @@ always@(posedge clk) begin
 	Aval	<= 0;
 	Bval	<= 0;
 	instructionExecute <= 0;
-    end else if( !stall ) begin
+    end else if( stall == 1'b0 ) begin
 	case(Ra)
 	    4'hE: begin
 		Aval <= pc;

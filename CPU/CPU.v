@@ -36,35 +36,43 @@ module CPU(
 `define FLUSH	    8'h4
 `define HALT	    8'h5
 
-// Decode/demux of the instruction 
-wire [3:0]Ra, Rb, Rc, Rc2, Rc3;
-wire Imb, Cmp, Cmp2, Cmp3; 
-wire [13:0] Imm;
-wire [4:0] Opc, Opc2, Opc3; 
-wire [2:0] Cond, Cond2, Cond3;
-
 reg rst;
+reg stallFetch, stallDecode, stallExecute;
+reg [31:0] OverwriteData;
+reg [1:0] OverwriteEn;
 
-Fetch fetch(instructionIn, clk, rst,
-    Imb, Ra, Rb, Imm, Opc, Rc, Cond, Cmp);
+// Decode/demux of the instruction 
+wire [31:0] instructionWriteBack;
+wire Imb;
+wire [3:0]Ra;
+wire [3:0]Rb;
+wire [13:0]Imm;
+wire [4:0]Opc;
+wire [3:0]Rc /* synthesis keep*/;
+wire [2:0]Cond /* synthesis keep */;
+wire Cmp;
 
-Decode decode( Ra, Rb, Imb, Imm, Opc, Rc, Cond, Cmp,
-    r, overflow, pc,
-    clk, rst,
-    Aval, Bval, 
-    Opc2, Rc2, Cond2, Cmp2 );
+assign {Imb, Ra, Imm, Opc, Rc, Cond, Cmp} = instructionWriteBack;
+assign Rb = instructionWriteBack[26:23];
 
-Execute execute(
-    Aval, Bval, ALUStatus,
-    Opc2, Rc2, Cmp2, Cond2,
-    clk, rst,
-    ALUStatusOut3, ALUOut3, ALUOverflow3,
-    dataAddress, dataOut,
-    Opc3, Rc3, Cmp3, Cond3);
+wire [31:0] instructionDecode;
+wire [31:0] instructionExecute;
+wire [4:0] OpcExecute;
+assign OpcExecute   = instructionExecute[12:8];
 
-wire [7:0] ALUStatusOut3;
-wire [31:0] ALUOut3;
-wire [31:0] ALUOverflow3;
+wire [3:0] RaExecute, RbExecute;
+wire ImbExecute;
+assign RaExecute    = instructionExecute[30:27];
+assign RbExecute    = instructionExecute[26:23];
+assign ImbExecute   = instructionExecute[31];
+
+// The decoded value of Rb, which can be an immediate value or a register
+// (r-series only, not PC or overflow)
+wire [31:0] Bval;
+
+// The decoded value of Ra, which can be a register value (r-series)
+// or the value of PC or overflow
+wire [31:0] Aval;
 
 // Following are registers used by the CPU
 // PC is the program counter, mapped to the instruction address
@@ -80,22 +88,35 @@ wire ge;
 assign zero	= ALUStatus[0];
 assign ge	= ALUStatus[2];
 // Depending on the ALUstatus, write back the final result
-reg writeBackEnable;
+reg writeBackEnable /*synthesis keep*/; 
 // The overflow register, for DIV and MUL
 reg [31:0] overflow;
 // Map pc -> instruction address
 assign instructionAddress = pc;
 
-// The decoded value of Rb, which can be an immediate value or a register
-// (r-series only, not PC or overflow)
-wire [31:0] Bval;
+wire [7:0] ALUStatusOut3;
+wire [31:0] ALUOut3;
+wire [31:0] ALUOverflow3;
 
-// The decoded value of Ra, which can be a register value (r-series)
-// or the value of PC or overflow
-wire [31:0] Aval;
+Fetch fetch(instructionIn, clk, rst, stallFetch, instructionDecode);
+
+Decode decode( instructionDecode, 
+    r, overflow, pc,
+    clk, rst, stallDecode,
+    Aval, Bval, 
+    instructionExecute);
+
+Execute execute(
+    instructionExecute,
+    Aval, Bval, ALUStatus,
+    clk, rst, stallExecute,
+    ALUStatusOut3, ALUOut3, ALUOverflow3,
+    dataAddress, dataOut,
+    OverwriteData, OverwriteEn,
+    instructionWriteBack);
 
 always @(*) begin
-    case(Cond3)
+    case(Cond)
 	`ALWAYS: begin
 	    writeBackEnable = 1'b1;
 	end
@@ -127,14 +148,14 @@ always @(*) begin
 		writeBackEnable = 1'b0;
 	end
 	default: begin
-	    writeBackEnable = 1'b1;
+	    writeBackEnable = 1'b0;
 	end
     endcase
 end
 
 always @(posedge clk) begin
     if(nRst) begin
-	if(Opc2 == `STORE)// && state == `EXECUTE)
+	if(OpcExecute == `STORE)// && state == `EXECUTE)
 	    dataWrEn <= 1'b1;
 	else
 	    dataWrEn <= 1'b0;
@@ -145,7 +166,7 @@ always @(posedge clk) begin
     if( !nRst ) begin
 	// Under reset conditions, everything goes to zero and we go to LEVEL
 	// 1 execution
-	state	    <= `FLUSH;
+	state	    <= `FETCH;
 	pc	    <= 12'h000;
 	r[0]	    <= 32'h0;
 	r[1]	    <= 32'h0;
@@ -161,39 +182,26 @@ always @(posedge clk) begin
 	r[11]	    <= 32'h0;
 	r[12]	    <= 32'h0;
 	r[13]	    <= 32'h0;
-	cpuStatus <= 8'h02;
+	cpuStatus   <= 8'h02;
+	rst	    <= 1'b1;
+	stallFetch  <= 1'b0;
+	stallDecode <= 1'b0;
+	stallExecute<= 1'b0;
+	OverwriteEn <= 2'b00;
     end else begin
 	case(state)
 	    `FETCH: begin
+		rst <= 1'b0;
 		cpuStatus <= 8'h01;
 
-/*
-		state <= `DECODE;
-	    end
-	    `DECODE: begin
-*/
-
-/*
-		state <= `EXECUTE;
-	    end
-	    `EXECUTE: begin
-*/
-
-		// Remember that parallel to these LOAD/STORE operations,
-		// Aval and Bval are racing through the ALU
-/*
-		state <= `WRITEBACK;
-	    end
-	    `WRITEBACK: begin
-*/
-		if( Cmp3 == 1'b1 ) begin
+		if( Cmp == 1'b1 ) begin
 		    ALUStatus <= ALUStatusOut3;
 		end
 
 		// Before writing anything away, we have to check we are not
 		// dealing with a NOP
-		if( Opc3 == `LOAD && Opc3 != 5'h0 ) begin
-		    case(Rc3)
+		if( Opc == `LOAD && Opc != 5'h0 ) begin
+		    case(Rc)
 			4'hE: begin
 			    pc		<= dataIn[11:0];
 			end
@@ -202,13 +210,13 @@ always @(posedge clk) begin
 			    pc		<= pc + 12'h1;
 			end
 			default: begin
-			    r[Rc3]	<= dataIn;
+			    r[Rc]	<= dataIn;
 			    pc		<= pc + 12'h1;
 			end
 		    endcase
-		end else if( Opc3 != 5'h0) begin
+		end else if( Opc != 5'h0) begin
 		    if( writeBackEnable == 1'b1 ) begin
-			case(Rc3)
+			case(Rc)
 			    4'hE: begin
 				pc	    <= ALUOut3[11:0];
 			    end
@@ -217,7 +225,7 @@ always @(posedge clk) begin
 				pc	    <= pc + 12'h1;
 			    end
 			    default: begin
-				r[Rc3]	    <= ALUOut3;
+				r[Rc]	    <= ALUOut3;
 				pc	    <= pc + 12'h1;
 			    end
 			endcase
@@ -231,11 +239,40 @@ always @(posedge clk) begin
 
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
-		if(Rc3 == 4'hE && ((Opc3 == `LOAD) || (writeBackEnable == 1'b1))) begin
+		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1))) begin
 		    state <= `FLUSH;	
 		    rst <= 1'b1;
 		end else
 		    state <= `FETCH;
+
+		/*
+		 * PIPELINE HAZARD MANAGER
+		 */
+	
+		if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
+		    if( RaExecute == Rc ) begin
+			if( Opc == `LOAD )
+			    OverwriteData   <= dataIn;
+			else
+			    OverwriteData	<= ALUOut3;
+
+			OverwriteEn		<= 2'b01;
+		    end else begin
+			if(ImbExecute == 1'b0 && RbExecute == Rc) begin
+			    if( Opc == `LOAD )
+				OverwriteData   <= dataIn;
+			    else
+				OverwriteData   <= ALUOut3;
+
+			    OverwriteEn	    <= 2'b10;
+			end else begin
+			    OverwriteEn	<= 2'b00;
+			end
+		    end
+		end else begin
+		    OverwriteEn <= 2'b00;
+		end
+	
 
 	    end
 	    // In this state, we simply flush the pipeline, though the correct
