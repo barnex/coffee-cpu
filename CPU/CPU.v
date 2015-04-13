@@ -93,7 +93,7 @@ assign lt	= ALUStatus[2];
 // Depending on the ALUstatus, write back the final result
 reg writeBackEnable /*synthesis keep*/; 
 // The overflow register, for DIV and MUL
-reg [31:0] overflow;
+reg [31:0] overflow /* synthesis keep*/;
 // Map pc -> instruction address
 assign instructionAddress = pc;
 
@@ -164,10 +164,16 @@ always_comb begin
 	    stallReq = 1'b1;
 	else if( Cmp == 1'b1 )
 	    stallReq = 1'b1;
+	else if( RaExecute == 4'hF || RbExecute == 4'hF)
+	    stallReq = 1'b1;
 	else
 	    stallReq = 1'b0;
-    end else
-	stallReq = 1'b0;
+    end else begin
+	if( (RaExecute == 4'hF || RbExecute == 4'hF) && (Opc != 0))
+	    stallReq = 1'b1;
+	else
+	    stallReq = 1'b0;
+    end
 end
 
 always_comb begin
@@ -260,6 +266,9 @@ always @(posedge clk) begin
 			endcase
 		    end
 		end
+		if( Opc != `LOAD && Rc != 4'hF ) begin
+		    overflow	<= ALUOverflow3;
+		end
 
 		if( pcIncEn == 1'b1 )
 		    pc	<= pc + 12'h1;
@@ -286,7 +295,7 @@ always @(posedge clk) begin
 		end
 		     
 	
-		if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
+		if( (writeBackEnable == 1'b1 || Opc == `LOAD) && (RaExecute != 4'hF) && (RbExecute != 4'hF) ) begin	
 		    if( RaExecute == Rc ) begin
 			if( Opc == `LOAD )
 			    OverwriteData   <= dataIn;
@@ -306,6 +315,12 @@ always @(posedge clk) begin
 			    OverwriteEn	<= 2'b00;
 			end
 		    end
+		end else if(RaExecute == 4'hF) begin
+		    OverwriteData   <= ALUOverflow3;
+		    OverwriteEn <= 2'b01;
+		end else if(RbExecute == 4'hF) begin
+		    OverwriteData   <= ALUOverflow3;
+		    OverwriteEn <= 2'b10;
 		end else begin
 		    OverwriteEn <= 2'b00;
 		end
