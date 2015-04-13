@@ -30,7 +30,8 @@ wire Cmp;
 assign {Imb, Ra, Imm, Opc, Rc, Cond, Cmp} = instructionExecute;
 assign Rb = instructionExecute[26:23];
 
-wire [31:0] Afinal, Bfinal;
+wire [31:0] Afinal /* synthesis keep */;
+wire [31:0] Bfinal;
 
 always @(*) begin
     case(OverwriteEn)

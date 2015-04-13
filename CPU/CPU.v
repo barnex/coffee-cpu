@@ -40,9 +40,9 @@ reg rst;
 reg stallFetch, stallDecode, stallExecute;
 reg [31:0] OverwriteData;
 reg [1:0] OverwriteEn;
-wire stallReq;
+wire stallReq /* synthesis keep */;
 
-wire pcIncEn;
+wire pcIncEn /* synthesis keep */;
 
 // Decode/demux of the instruction 
 wire [31:0] instructionWriteBack;
@@ -87,9 +87,9 @@ reg [7:0] state;
 // The resultant status following an operation
 reg [7:0] ALUStatus;
 wire zero;
-wire ge;
+wire lt;
 assign zero	= ALUStatus[0];
-assign ge	= ALUStatus[2];
+assign lt	= ALUStatus[2];
 // Depending on the ALUstatus, write back the final result
 reg writeBackEnable /*synthesis keep*/; 
 // The overflow register, for DIV and MUL
@@ -101,18 +101,18 @@ wire [7:0] ALUStatusOut3;
 wire [31:0] ALUOut3;
 wire [31:0] ALUOverflow3;
 
-Fetch fetch(instructionIn, clk, rst, stallFetch, instructionDecode);
+Fetch fetch(instructionIn, clk, rst, stallReq, instructionDecode);
 
 Decode decode( instructionDecode, 
     r, overflow, pc,
-    clk, rst, stallDecode,
+    clk, rst, stallReq,
     Aval, Bval, 
     instructionExecute);
 
 Execute execute(
     instructionExecute,
     Aval, Bval, ALUStatus,
-    clk, rst, stallExecute,
+    clk, rst, stallReq,
     ALUStatusOut3, ALUOut3, ALUOverflow3,
     dataAddress, dataOut,
     OverwriteData, OverwriteEn,
@@ -139,13 +139,13 @@ always_comb begin
 		writeBackEnable = 1'b0;
 	end
 	`GE: begin
-	    if( ge == 1'b1 )
+	    if( lt == 1'b0 )
 		writeBackEnable = 1'b1;
 	    else
 		writeBackEnable = 1'b0;
 	end
 	`LT: begin
-	    if( ge == 1'b0 )
+	    if( lt == 1'b1 )
 		writeBackEnable = 1'b1;
 	    else
 		writeBackEnable = 1'b0;
@@ -157,10 +157,12 @@ always_comb begin
 end
 
 always_comb begin
-    if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
+    if( writeBackEnable == 1'b1 || Opc == `LOAD || Cmp == 1'b1 ) begin	
 	if( RaExecute == Rc )
 	    stallReq = 1'b1;
 	else if( ImbExecute == 1'b0 && RbExecute == Rc )
+	    stallReq = 1'b1;
+	else if( Cmp == 1'b1 )
 	    stallReq = 1'b1;
 	else
 	    stallReq = 1'b0;
@@ -197,7 +199,7 @@ always @(posedge clk) begin
     if( !nRst ) begin
 	// Under reset conditions, everything goes to zero and we go to LEVEL
 	// 1 execution
-	state	    <= `FETCH;
+	state	    <= `FLUSH;
 	pc	    <= 12'h000;
 	r[0]	    <= 32'h0;
 	r[1]	    <= 32'h0;
