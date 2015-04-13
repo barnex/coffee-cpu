@@ -7,8 +7,6 @@ always @(posedge clk)
     end else begin
 	if( stall == 1'b0 ) begin
 	    instructionDecode <= instructionIn;
-	end else begin
-	    instructionDecode <= 0;    
 	end
     end
 endmodule

@@ -22,7 +22,7 @@ always@(posedge clk) begin
 	Aval	<= 0;
 	Bval	<= 0;
 	instructionExecute <= 0;
-    end else if( stall == 1'b0 ) begin
+    end else begin
 	case(Ra)
 	    4'hE: begin
 		Aval <= pc;
@@ -44,9 +44,8 @@ always@(posedge clk) begin
 		Bval <= 32'h0;
 	end
 
-	instructionExecute <= instructionDecode;
-    end else begin
-	instructionExecute <= 0;
+	if( stall == 1'b0 )
+	    instructionExecute <= instructionDecode;
     end
 end
 

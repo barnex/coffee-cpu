@@ -65,12 +65,10 @@ always @(posedge clk)
 	ALUOverflow3    <= 0;
 
 	instructionWriteBack <= 0;
-    end else if ( stall == 1'b0 ) begin
+    end else begin
 	ALUStatusOut3   <= alustatusouttmp;
 	ALUOut3		<= aluouttmp;
 	ALUOverflow3    <= aluoverflowouttmp;
-
-	instructionWriteBack <= instructionExecute;
 
 	case (Opc)
 	    `LOAD: begin
@@ -86,7 +84,10 @@ always @(posedge clk)
 		// Enable writing
 	    end
 	endcase
-    end else begin
-	instructionWriteBack <= 0;
+
+	if( stall == 1'b0 ) 
+	    instructionWriteBack <= instructionExecute;
+	else
+	    instructionWriteBack <= 0;
     end
 endmodule

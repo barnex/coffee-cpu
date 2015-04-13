@@ -40,6 +40,9 @@ reg rst;
 reg stallFetch, stallDecode, stallExecute;
 reg [31:0] OverwriteData;
 reg [1:0] OverwriteEn;
+wire stallReq;
+
+wire pcIncEn;
 
 // Decode/demux of the instruction 
 wire [31:0] instructionWriteBack;
@@ -115,7 +118,7 @@ Execute execute(
     OverwriteData, OverwriteEn,
     instructionWriteBack);
 
-always @(*) begin
+always_comb begin
     case(Cond)
 	`ALWAYS: begin
 	    writeBackEnable = 1'b1;
@@ -151,6 +154,34 @@ always @(*) begin
 	    writeBackEnable = 1'b0;
 	end
     endcase
+end
+
+always_comb begin
+    if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
+	if( RaExecute == Rc )
+	    stallReq = 1'b1;
+	else if( ImbExecute == 1'b0 && RbExecute == Rc )
+	    stallReq = 1'b1;
+	else
+	    stallReq = 1'b0;
+    end else
+	stallReq = 1'b0;
+end
+
+always_comb begin
+    // If we load from memory into PC, don't increase
+    if( Opc == `LOAD && Rc == 4'hE )
+	pcIncEn = 1'b0;
+    // If we save a result into PC, don't increase
+    else if( Opc != 5'h0 && writeBackEnable == 1'b1 && Rc == 4'hE )
+	pcIncEn = 1'b0;
+    // If we aren't saving anything into PC (i.e. no branch), but a stall has
+    // been requested, don't increase
+    else if( stallReq == 1'b1 )
+	pcIncEn = 1'b0;
+    // In all other cases, increase
+    else
+	pcIncEn = 1'b1;
 end
 
 always @(posedge clk) begin
@@ -207,11 +238,9 @@ always @(posedge clk) begin
 			end
 			4'hF: begin
 			    overflow	<= dataIn;
-			    pc		<= pc + 12'h1;
 			end
 			default: begin
 			    r[Rc]	<= dataIn;
-			    pc		<= pc + 12'h1;
 			end
 		    endcase
 		end else if( Opc != 5'h0) begin
@@ -222,20 +251,16 @@ always @(posedge clk) begin
 			    end
 			    4'hF: begin
 				overflow    <= ALUOut3;
-				pc	    <= pc + 12'h1;
 			    end
 			    default: begin
 				r[Rc]	    <= ALUOut3;
-				pc	    <= pc + 12'h1;
 			    end
 			endcase
-		    end else begin
-			pc  <= pc + 12'h1;
 		    end
-		// NOP's only increase the program counter
-		end else begin
-		    pc	    <= pc + 12'h1;
 		end
+
+		if( pcIncEn == 1'b1 )
+		    pc	<= pc + 12'h1;
 
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
@@ -248,6 +273,16 @@ always @(posedge clk) begin
 		/*
 		 * PIPELINE HAZARD MANAGER
 		 */
+		if( stallReq == 1'b1 ) begin
+		    stallFetch	    <= 1'b1;
+		    stallDecode	    <= 1'b1;
+		    stallExecute    <= 1'b1;
+		end else begin
+		    stallFetch	    <= 1'b0;
+		    stallDecode	    <= 1'b0;
+		    stallExecute    <= 1'b0;
+		end
+		     
 	
 		if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
 		    if( RaExecute == Rc ) begin
