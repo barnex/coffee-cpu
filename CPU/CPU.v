@@ -320,7 +320,7 @@ always @(posedge clk) begin
 		 * PIPELINE HAZARD MANAGER
 		 */
 		// Check for branches
-		if( Rc != 4'hE && writeBackEnable == 1'b1 ) begin
+		if( !(Rc == 4'hE && writeBackEnable == 1'b1) ) begin
 		    // This piece checks for Ra == Rc, with Rc being overwritten (ALU op)
 		    if( writeBackEnable == 1'b1 && Opc != 5'h0 && RaExecute == Rc ) begin
 			overrideA	<= ALUOut3;
