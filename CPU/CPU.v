@@ -13,6 +13,8 @@ module CPU(
     input [11:0]IRQn,
     output reg IRQAck);
 
+`default_nettype none
+
 `define LOAD	    5'h1
 `define STORE	    5'h2
 `define AND	    5'h3
@@ -41,8 +43,8 @@ module CPU(
 `define HALT	    8'h5
 
 reg rst;
-reg [31:0] overrideDataA;
-reg [31:0] overrideDataB;
+reg [31:0] overrideA;
+reg [31:0] overrideB;
 reg [1:0] overrideEn;
 wire stallReq /* synthesis keep */;
 wire pcIncEn /* synthesis keep */;
@@ -317,38 +319,42 @@ always @(posedge clk) begin
 		/*
 		 * PIPELINE HAZARD MANAGER
 		 */
+		// Check for branches
+		if( Rc != 4'hE && writeBackEnable == 1'b1 ) begin
+		    // This piece checks for Ra == Rc, with Rc being overwritten (ALU op)
+		    if( writeBackEnable == 1'b1 && Opc != 5'h0 && RaExecute == Rc ) begin
+			overrideA	<= ALUOut3;
+			overrideEn[0]   <= 1'b1;	
+		    // This piece checks for Ra == Rc, with Rc being overwritten (LOAD op)
+		    end else if( Opc == `LOAD && RaExecute == Rc ) begin
+			overrideA	<= dataIn;
+			overrideEn[0]   <= 1'b1;
+		    // This piece checks for Ra == overflow, and Rc != overflow
+		    end else if( Opc != 5'h0 && RaExecute == 4'hF) begin
+			overrideA	<= ALUOverflow3;
+			overrideEn[0]   <= 1'b1;
+		    // If not of the above...
+		    end else begin
+			overrideEn[0]   <= 1'b0;
+		    end
 
-		// This piece checks for Ra == Rc, with Rc being overwritten (ALU op)
-		if( writeBackEnable == 1'b1 && Opc != 5'h0 && RaExecute == Rc ) begin
-		    overrideA	    <= ALUOut3;
-		    overrideEn[0]   <= 1'b1;	
-		// This piece checks for Ra == Rc, with Rc being overwritten (LOAD op)
-		end else if( Opc == `LOAD && RaExecute == Rc ) begin
-		    overrideA	    <= dataIn;
-		    overrideEn[0]   <= 1'b1;
-		// This piece checks for Ra == overflow, and Rc != overflow
-		end else if( Opc != 5'h0 && RaExecute == 4'hF) begin
-		    overrideA	    <= ALUOverflow3;
-		    overrideEn[0]   <= 1'b1;
-		// If not of the above...
+		    /*
+		     * Ditto for B
+		     */
+		    if( writeBackEnable == 1'b1 && Opc != 5'h0 && RbExecute == Rc ) begin
+			overrideB	<= ALUOut3;
+			overrideEn[1]   <= 1'b1;	
+		    end else if( Opc == `LOAD && RbExecute == Rc ) begin
+			overrideB	<= dataIn;
+			overrideEn[1]   <= 1'b1;
+		    end else if( Opc != 5'h0 && RbExecute == 4'hF) begin
+			overrideB	<= ALUOverflow3;
+			overrideEn[1]   <= 1'b1;
+		    end else begin
+			overrideEn[1]   <= 1'b0;
+		    end
 		end else begin
-		    overrideEn[0]   <= 1'b0;
-		end
-
-		/*
-		 * Ditto for B
-		 */
-		if( writeBackEnable == 1'b1 && Opc != 5'h0 && RbExecute == Rc ) begin
-		    overrideB	    <= ALUOut3;
-		    overrideEn[1]   <= 1'b1;	
-		end else if( Opc == `LOAD && RbExecute == Rc ) begin
-		    overrideB	    <= dataIn;
-		    overrideEn[1]   <= 1'b1;
-		end else if( Opc != 5'h0 && RbExecute == 4'hF) begin
-		    overrideB	    <= ALUOverflow3;
-		    overrideEn[1]   <= 1'b1;
-		end else begin
-		    overrideEn[1]   <= 1'b0;
+		    overrideEn		<= 2'b0;
 		end
 		
 	    end
