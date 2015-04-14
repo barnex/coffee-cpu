@@ -159,21 +159,30 @@ always_comb begin
     endcase
 end
 
+/*
+ * STALL DETERMINATION MANAGER (is a stall required because of override?)
+ */
 always_comb begin
     if( Cmp == 1'b1 ) begin
 	stallReq = 1'b1;
-    end else if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
+    // A load or ALU operation with WB has taken place
+    end else if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin
+	// Source and destination match (A)
 	if( RaExecute == Rc )
 	    stallReq = 1'b1;
+	// Source and destination match (B)
 	else if( ImbExecute == 1'b0 && RbExecute == Rc )
 	    stallReq = 1'b1;
+	// ALU Status has been updated
 	else if( Cmp == 1'b1 )
 	    stallReq = 1'b1;
+	// overflow register is required
 	else if( RaExecute == 4'hF || RbExecute == 4'hF)
 	    stallReq = 1'b1;
 	else
 	    stallReq = 1'b0;
     end else begin
+	// No WB takes place, but the overflow register is still required
 	if( (RaExecute == 4'hF || RbExecute == 4'hF) && (Opc != 0))
 	    stallReq = 1'b1;
 	else
@@ -181,6 +190,9 @@ always_comb begin
     end
 end
 
+/*
+ * PC INCREASE MANAGER ( PC + 1 allowed? )
+ */
 always_comb begin
     // If we load from memory into PC, don't increase
     if( Opc == `LOAD && Rc == 4'hE )
@@ -237,10 +249,17 @@ always @(posedge clk) begin
 		rst	    <= 1'b0;
 		cpuStatus   <= 8'h01;
 
+		/*
+		 * STATUS UPDATE MANAGER
+		 */
 		// If the Cmp bit is set, we update that ALU status register
 		if( Cmp == 1'b1 ) begin
 		    ALUStatus <= ALUStatusOut3;
 		end
+
+		/*
+		 * WRITEBACK OPERATION MANAGER
+		 */
 
 		// LOAD operations are always written
 		if( Opc == `LOAD ) begin
@@ -286,11 +305,12 @@ always @(posedge clk) begin
 		/*
 		 * PIPELINE FLUSH MANAGER
 		 */
+
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
 		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1))) begin
-		    state <= `FLUSH;	
-		    rst <= 1'b1;
+		    state   <= `FLUSH;	
+		    rst	    <= 1'b1;
 		end else
 		    state <= `FETCH;
 
