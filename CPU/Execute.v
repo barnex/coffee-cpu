@@ -4,7 +4,7 @@ module Execute(
     input clk, input rst, input stall,
     output reg [7:0]ALUStatusOut3, output reg [31:0] ALUOut3, output reg [31:0]ALUOverflow3,
     output reg [13:0] dataAddress, output reg [31:0]dataOut,
-    input [31:0] OverwriteData, input [1:0] OverwriteEn,
+    input [31:0] overrideA, input [31:0] overrideB, input [1:0] overrideEn,
     output reg[31:0] instructionWriteBack);
 `define LOAD	    5'h1
 `define STORE	    5'h2
@@ -34,14 +34,18 @@ wire [31:0] Afinal /* synthesis keep */;
 wire [31:0] Bfinal;
 
 always @(*) begin
-    case(OverwriteEn)
+    case(overrideEn)
 	2'b01: begin
-	    Afinal = OverwriteData;
+	    Afinal = overrideA;
 	    Bfinal = Bval;
 	end
 	2'b10: begin
 	    Afinal = Aval;
-	    Bfinal = OverwriteData;
+	    Bfinal = overrideB;
+	end
+	2'b11: begin
+	    Afinal = overrideA;
+	    Bfinal = overrideB;
 	end
 	default: begin
 	    Afinal = Aval;

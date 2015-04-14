@@ -7,7 +7,11 @@ module CPU(
     output wire [11:0]instructionAddress,
     output reg	[7:0]cpuStatus,
     input nRst,
-    input clk);
+    input clk,
+    input stall,
+    input IRQ,
+    input [11:0]IRQn,
+    output reg IRQAck);
 
 `define LOAD	    5'h1
 `define STORE	    5'h2
@@ -37,11 +41,10 @@ module CPU(
 `define HALT	    8'h5
 
 reg rst;
-reg stallFetch, stallDecode, stallExecute;
-reg [31:0] OverwriteData;
-reg [1:0] OverwriteEn;
+reg [31:0] overrideDataA;
+reg [31:0] overrideDataB;
+reg [1:0] overrideEn;
 wire stallReq /* synthesis keep */;
-
 wire pcIncEn /* synthesis keep */;
 
 // Decode/demux of the instruction 
@@ -115,7 +118,7 @@ Execute execute(
     clk, rst, stallReq,
     ALUStatusOut3, ALUOut3, ALUOverflow3,
     dataAddress, dataOut,
-    OverwriteData, OverwriteEn,
+    overrideA, overrideB, overrideEn,
     instructionWriteBack);
 
 always_comb begin
@@ -157,7 +160,9 @@ always_comb begin
 end
 
 always_comb begin
-    if( writeBackEnable == 1'b1 || Opc == `LOAD || Cmp == 1'b1 ) begin	
+    if( Cmp == 1'b1 ) begin
+	stallReq = 1'b1;
+    end else if( writeBackEnable == 1'b1 || Opc == `LOAD ) begin	
 	if( RaExecute == Rc )
 	    stallReq = 1'b1;
 	else if( ImbExecute == 1'b0 && RbExecute == Rc )
@@ -223,23 +228,22 @@ always @(posedge clk) begin
 	r[13]	    <= 32'h0;
 	cpuStatus   <= 8'h02;
 	rst	    <= 1'b1;
-	stallFetch  <= 1'b0;
-	stallDecode <= 1'b0;
-	stallExecute<= 1'b0;
-	OverwriteEn <= 2'b00;
-    end else begin
+	overrideEn  <= 2'b00;
+	IRQAck	    <= 1'b0;
+    end else if( !stall && !IRQ ) begin
 	case(state)
 	    `FETCH: begin
-		rst <= 1'b0;
-		cpuStatus <= 8'h01;
+		IRQAck	    <= 1'b0;
+		rst	    <= 1'b0;
+		cpuStatus   <= 8'h01;
 
+		// If the Cmp bit is set, we update that ALU status register
 		if( Cmp == 1'b1 ) begin
 		    ALUStatus <= ALUStatusOut3;
 		end
 
-		// Before writing anything away, we have to check we are not
-		// dealing with a NOP
-		if( Opc == `LOAD && Opc != 5'h0 ) begin
+		// LOAD operations are always written
+		if( Opc == `LOAD ) begin
 		    case(Rc)
 			4'hE: begin
 			    pc		<= dataIn[11:0];
@@ -251,6 +255,8 @@ always @(posedge clk) begin
 			    r[Rc]	<= dataIn;
 			end
 		    endcase
+		// Before writing anything away, we have to check we are not
+		// dealing with a NOP
 		end else if( Opc != 5'h0) begin
 		    if( writeBackEnable == 1'b1 ) begin
 			case(Rc)
@@ -266,6 +272,10 @@ always @(posedge clk) begin
 			endcase
 		    end
 		end
+
+		// Only write to the overflow register, if an ALU operation
+		// has been performed, and the target designation is not the
+		// overflow register
 		if( Opc != `LOAD && Rc != 4'hF ) begin
 		    overflow	<= ALUOverflow3;
 		end
@@ -273,6 +283,9 @@ always @(posedge clk) begin
 		if( pcIncEn == 1'b1 )
 		    pc	<= pc + 12'h1;
 
+		/*
+		 * PIPELINE FLUSH MANAGER
+		 */
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
 		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1))) begin
@@ -284,48 +297,40 @@ always @(posedge clk) begin
 		/*
 		 * PIPELINE HAZARD MANAGER
 		 */
-		if( stallReq == 1'b1 ) begin
-		    stallFetch	    <= 1'b1;
-		    stallDecode	    <= 1'b1;
-		    stallExecute    <= 1'b1;
+
+		// This piece checks for Ra == Rc, with Rc being overwritten (ALU op)
+		if( writeBackEnable == 1'b1 && Opc != 5'h0 && RaExecute == Rc ) begin
+		    overrideA	    <= ALUOut3;
+		    overrideEn[0]   <= 1'b1;	
+		// This piece checks for Ra == Rc, with Rc being overwritten (LOAD op)
+		end else if( Opc == `LOAD && RaExecute == Rc ) begin
+		    overrideA	    <= dataIn;
+		    overrideEn[0]   <= 1'b1;
+		// This piece checks for Ra == overflow, and Rc != overflow
+		end else if( Opc != 5'h0 && RaExecute == 4'hF) begin
+		    overrideA	    <= ALUOverflow3;
+		    overrideEn[0]   <= 1'b1;
+		// If not of the above...
 		end else begin
-		    stallFetch	    <= 1'b0;
-		    stallDecode	    <= 1'b0;
-		    stallExecute    <= 1'b0;
+		    overrideEn[0]   <= 1'b0;
 		end
-		     
-	
-		if( (writeBackEnable == 1'b1 || Opc == `LOAD) && (RaExecute != 4'hF) && (RbExecute != 4'hF) ) begin	
-		    if( RaExecute == Rc ) begin
-			if( Opc == `LOAD )
-			    OverwriteData   <= dataIn;
-			else
-			    OverwriteData	<= ALUOut3;
 
-			OverwriteEn		<= 2'b01;
-		    end else begin
-			if(ImbExecute == 1'b0 && RbExecute == Rc) begin
-			    if( Opc == `LOAD )
-				OverwriteData   <= dataIn;
-			    else
-				OverwriteData   <= ALUOut3;
-
-			    OverwriteEn	    <= 2'b10;
-			end else begin
-			    OverwriteEn	<= 2'b00;
-			end
-		    end
-		end else if(RaExecute == 4'hF) begin
-		    OverwriteData   <= ALUOverflow3;
-		    OverwriteEn <= 2'b01;
-		end else if(RbExecute == 4'hF) begin
-		    OverwriteData   <= ALUOverflow3;
-		    OverwriteEn <= 2'b10;
+		/*
+		 * Ditto for B
+		 */
+		if( writeBackEnable == 1'b1 && Opc != 5'h0 && RbExecute == Rc ) begin
+		    overrideB	    <= ALUOut3;
+		    overrideEn[1]   <= 1'b1;	
+		end else if( Opc == `LOAD && RbExecute == Rc ) begin
+		    overrideB	    <= dataIn;
+		    overrideEn[1]   <= 1'b1;
+		end else if( Opc != 5'h0 && RbExecute == 4'hF) begin
+		    overrideB	    <= ALUOverflow3;
+		    overrideEn[1]   <= 1'b1;
 		end else begin
-		    OverwriteEn <= 2'b00;
+		    overrideEn[1]   <= 1'b0;
 		end
-	
-
+		
 	    end
 	    // In this state, we simply flush the pipeline, though the correct
 	    // new instruction is available, we will not load it, because this
@@ -338,6 +343,12 @@ always @(posedge clk) begin
 		cpuStatus <= 8'h04;
 	    end
 	endcase
+    end else if( IRQ ) begin
+	if( IRQAck == 1'b0 ) begin
+	    overflow    <= pc - 12'h2; 
+	    pc		<= IRQn;
+	end
+	IRQAck <= 1'b1;
     end
 end
 
