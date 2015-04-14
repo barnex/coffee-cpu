@@ -46,8 +46,8 @@ reg rst;
 reg [31:0] overrideA;
 reg [31:0] overrideB;
 reg [1:0] overrideEn;
-wire stallReq /* synthesis keep */;
-wire pcIncEn /* synthesis keep */;
+wire stallReq;
+wire pcIncEn;
 
 // Decode/demux of the instruction 
 wire [31:0] instructionWriteBack;
@@ -56,8 +56,8 @@ wire [3:0]Ra;
 wire [3:0]Rb;
 wire [13:0]Imm;
 wire [4:0]Opc;
-wire [3:0]Rc /* synthesis keep*/;
-wire [2:0]Cond /* synthesis keep */;
+wire [3:0]Rc;
+wire [2:0]Cond;
 wire Cmp;
 
 assign {Imb, Ra, Imm, Opc, Rc, Cond, Cmp} = instructionWriteBack;
@@ -96,9 +96,9 @@ wire lt;
 assign zero	= ALUStatus[0];
 assign lt	= ALUStatus[2];
 // Depending on the ALUstatus, write back the final result
-reg writeBackEnable /*synthesis keep*/; 
+reg writeBackEnable;
 // The overflow register, for DIV and MUL
-reg [31:0] overflow /* synthesis keep*/;
+reg [31:0] overflow;
 // Map pc -> instruction address
 assign instructionAddress = pc;
 
