@@ -35,6 +35,10 @@ func Assemble(in io.Reader, out io.Writer) {
 			v := ParseInt(words[1], 32)
 			bits = uint32(v)
 		} else {
+			// final cmp bit is optional, default: -cmp
+			if len(words) == 5 {
+				words = append(words, "-cmp")
+			}
 			if len(words) != 6 {
 				Err("need 5 operands")
 			}
