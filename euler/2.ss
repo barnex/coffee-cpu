@@ -4,23 +4,36 @@
 // 	1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ...
 // By considering the terms in the Fibonacci sequence whose values do not exceed four million, 
 // find the sum of the even-valued terms.
+// Answer: 4613732
 
-#def display 0xFFFF
+#def display 0x3FFF
 
+// initialize  two successive terms
 #def v1 R1
 #def v2 R2
-LOADLI v1 1
-LOADLI v2 2
+ADD R0 1 A v1
+ADD R0 2 A v2
 
+// load 4000000 into max
 #def max R3
-LOADI max gl_max
-STORI max display
+ADD R0 4000 A max
+MUL max 1000 A max
 
-#def sum R3
 
-HALT
+#def sum R4
+#def v3 R5
 
-#label gl_max
-DATA 4000000
+#label start
+AND v1 1 N R0 +cmp  // test for even
+ADD sum v1 Z sum    // add to sum if even
+
+ADD v1 v2 A v3      // shift to next term
+ADD R0 v2 A v1
+ADD R0 v3 A v2
+
+SUB max v1 N R0 +cmp // loop as long as term < max
+ADD R0 start GE PC
+
+STORE sum display N R0
 
 
