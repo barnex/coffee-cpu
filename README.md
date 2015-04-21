@@ -7,10 +7,7 @@ Directory CPU/ has a verilog implementation of the CPU, which works on an FPGA (
 
 ##assembler
 Command ``ass`` assembles source files into ihex executables, which can be loaded into the FPGA memory (@barnex):
-```
-ass test.ss
-```
-The assembler accepts assembly code conform the ISA (below) and ``#def``, ``#undef``, ``#label`` macros.
+Documentation: http://godoc.org/github.com/barnex/coffee-cpu/cmd/ass
 
 ##emulator
 Command ``emu`` emulates ihex execution on a PC (@barnex). It features tracing execution (``-trace`` flag)
