@@ -323,9 +323,9 @@ always @(posedge clk) begin
 		// If we wrote anything to the PC, we need to flush the
 		// pipeline
 		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1))) begin
-		    state   <= `FLUSH;	
+		    state	<= `FLUSH;	
 		    overrideEn	<= 2'b0;
-		    rst	    <= 1'b1;
+		    rst		<= 1'b1;
 		end else
 		    state <= `FETCH;
 
@@ -354,17 +354,21 @@ always @(posedge clk) begin
 		    /*
 		     * Ditto for B
 		     */
-		    if( writeBackEnable == 1'b1 && Opc != 5'h0 && RbExecute == Rc ) begin
-			overrideB	<= ALUOut3;
-			overrideEn[1]   <= 1'b1;	
-		    end else if( Opc == `LOAD && RbExecute == Rc ) begin
-			overrideB	<= dataIn;
-			overrideEn[1]   <= 1'b1;
-		    end else if( Opc != 5'h0 && RbExecute == 4'hF) begin
-			overrideB	<= ALUOverflow3;
-			overrideEn[1]   <= 1'b1;
+		    if( ImbExecute == 1'b0 ) begin
+			if( writeBackEnable == 1'b1 && Opc != 5'h0 && (RbExecute == Rc ) )begin
+			    overrideB	<= ALUOut3;
+			    overrideEn[1]   <= 1'b1;	
+			end else if( Opc == `LOAD && RbExecute == Rc ) begin
+			    overrideB	<= dataIn;
+			    overrideEn[1]   <= 1'b1;
+			end else if( Opc != 5'h0 && RbExecute == 4'hF) begin
+			    overrideB	<= ALUOverflow3;
+			    overrideEn[1]   <= 1'b1;
+			end else begin
+			    overrideEn[1]   <= 1'b0;
+			end
 		    end else begin
-			overrideEn[1]   <= 1'b0;
+			overrideEn[1]	<= 1'b0;
 		    end
 		end else begin
 		    overrideEn		<= 2'b0;
