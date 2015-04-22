@@ -16,7 +16,7 @@ ADD R0 2 A v2
 
 // load 4000000 into max
 #def max R3
-ADD R0 4000 A max
+ADD R0  4000 A max
 MUL max 1000 A max
 
 
@@ -24,16 +24,14 @@ MUL max 1000 A max
 #def v3 R5
 
 #label start
-AND v1 1 N R0 +cmp  // test for even
-ADD sum v1 Z sum    // add to sum if even
+AND v1  1  N R0 +cmp  // test for even
+ADD sum v1 Z sum      // add to sum if even
 
-ADD v1 v2 A v3      // shift to next term
+ADD v1 v2 A v3        // shift to next term
 ADD R0 v2 A v1
 ADD R0 v3 A v2
 
-SUB max v1 N R0 +cmp // loop as long as term < max
-ADD R0 start GE PC
+SUB max v1    N  R0 +cmp  // loop as long as term < max
+ADD R0  start GE PC
 
 STORE sum display N R0
-
-
