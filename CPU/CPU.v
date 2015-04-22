@@ -56,7 +56,7 @@ wire [3:0]Ra;
 wire [3:0]Rb;
 wire [13:0]Imm;
 wire [4:0]Opc;
-wire [3:0]Rc;
+wire [3:0]Rc /* synthesis keep */;
 wire [2:0]Cond;
 wire Cmp;
 
@@ -73,6 +73,12 @@ wire ImbExecute;
 assign RaExecute    = instructionExecute[30:27];
 assign RbExecute    = instructionExecute[26:23];
 assign ImbExecute   = instructionExecute[31];
+
+wire [3:0] RaDecode, RbDecode;
+wire ImbDecode;
+assign RaDecode	    = instructionDecode[30:27];
+assign RbDecode	    = instructionDecode[26:23];
+assign ImbDecode    = instructionDecode[31];
 
 // The decoded value of Rb, which can be an immediate value or a register
 // (r-series only, not PC or overflow)
@@ -96,7 +102,7 @@ wire lt;
 assign zero	= ALUStatus[0];
 assign lt	= ALUStatus[2];
 // Depending on the ALUstatus, write back the final result
-reg writeBackEnable;
+reg writeBackEnable /* synthesis keep */;
 // The overflow register, for DIV and MUL
 reg [31:0] overflow;
 // Map pc -> instruction address
@@ -175,6 +181,12 @@ always_comb begin
 	// Source and destination match (B)
 	else if( ImbExecute == 1'b0 && RbExecute == Rc )
 	    stallReq = 1'b1;
+	// Source and destination match (A)
+	else if( RaDecode == Rc )
+	    stallReq = 1'b1;
+	// Source and destination match (B)
+	else if( ImbDecode == 1'b0 && RbDecode == Rc )
+	    stallReq = 1'b1;
 	// ALU Status has been updated
 	else if( Cmp == 1'b1 )
 	    stallReq = 1'b1;
@@ -213,7 +225,7 @@ end
 
 always @(posedge clk) begin
     if(nRst) begin
-	if(OpcExecute == `STORE)// && state == `EXECUTE)
+	if(OpcExecute == `STORE && (!stallReq) && (state != `FLUSH) )// && state == `EXECUTE)
 	    dataWrEn <= 1'b1;
 	else
 	    dataWrEn <= 1'b0;
@@ -312,6 +324,7 @@ always @(posedge clk) begin
 		// pipeline
 		if(Rc == 4'hE && ((Opc == `LOAD) || (writeBackEnable == 1'b1))) begin
 		    state   <= `FLUSH;	
+		    overrideEn	<= 2'b0;
 		    rst	    <= 1'b1;
 		end else
 		    state <= `FETCH;
