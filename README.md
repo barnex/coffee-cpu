@@ -60,16 +60,51 @@ There is a 14 bit memory space, addressing 12 bit instruction memory, 12 bit pro
 Directory CPU/ has a verilog implementation of the CPU, which works on an FPGA (@mathiashelsen). The CPU currently clocks at 100MHz and issues 1 instruction per cycle (2 cycles for LOAD/STORE). 
 
 ##assembler
-Command ``ass`` assembles source files into ihex executables, which can be loaded into the FPGA memory (@barnex):
-Documentation: http://godoc.org/github.com/barnex/coffee-cpu/cmd/ass
+Command ``ass`` assembles source files into ihex executables, which can be loaded into the FPGA memory (@barnex)
+
+The instruction syntax closely follows the micro-instruction bit pattern described in package isa:
+
+    Op  Ra  Rb|value  Cond  Rc  cmp
+    
+with:
+
+    Op    :Opcode: LOAD|STORE|AND|OR|XOR|ADD|ADDC|SUB|MUL|DIV|SDIV
+    Ra    :Register A (1st operand): R0 - R15
+    Rb    :Register B (2nd operand): R0 - R13
+    value :Immediate value (2nd operand): 14 bit number
+    Cond  :Writeback condition: A|N|Z|NZ|GE|LT
+    cmp   :update status register: +cmp|-cmp
+
+E.g.:
+
+    ADD R0 R1 A R2 -cmp
+    
+Means R2 = R0 + R1, always executed (A), result not compared to zero
+
+    ADD R0 42 A R2 +cmp
+    
+Means R2 = R0 + 42, always executed (A), result compared to zero (affects next instruction)
+
+    ADD R0 R1 A R2 +cmp
+
+``#def`` can be used to define aliases for readabiltiy, e.g.:
+
+    #def counter R0
+    
+Means ``counter`` will now be substited by ``R0``, and ``R0`` cannot be used anymore.
+
+``#label`` creates a named alias for the current instruction number, used to make jumps readable. E.g.:
+
+    #label start
+    ADD   R0    start   A PC     -cmp // jump to start
+
+godoc documentation: http://godoc.org/github.com/barnex/coffee-cpu/cmd/ass
 
 ##emulator
-Command ``emu`` emulates ihex execution on a PC (@barnex). It features tracing execution (``-trace`` flag)
+Command ``emu`` emulates ihex execution on a PC (@barnex). It features tracing execution (``-trace`` flag) which prints every executed instruction and the values of the registers it affects.
 ```
 emu -trace test.ihex
 ```
-
-
 
 
 ##example program
