@@ -141,3 +141,36 @@ STORE   R1(2)   16383 N(false)     R0(0)
 ```
 
 Watch this program running on FPGA: https://youtu.be/CDd83oF9Tog (downclocked to 1Hz for clarity).
+
+##Project euler
+
+We solved the first two problems of https://projecteuler.net/ on our CPU. E.g.: problem 2: Find the sum of even-valued Fibonacci numbers not exceeding four million:
+
+    #def display 0x3FFF
+    
+    // initialize successive terms v1, v2 to 1, 2
+    #def v1 R1
+    #def v2 R2
+    ADD R0 1 A v1
+    ADD R0 2 A v2
+    
+    // load 4000000 into max
+    #def max R3
+    ADD R0  4000 A max
+    MUL max 1000 A max
+    
+    #def sum R4
+    #def v3 R5
+    
+    #label start
+    AND v1  1  N R0 +cmp  // test for even
+    ADD sum v1 Z sum      // add to sum if even
+    
+    ADD v1 v2 A v3        // advance to next term
+    ADD R0 v2 A v1
+    ADD R0 v3 A v2
+    
+    SUB max v1    N  R0 +cmp  // loop as long as term < max
+    ADD R0  start GE PC
+    
+    STORE sum display N R0   // display result
