@@ -1,15 +1,15 @@
-#coffee-cpu
+# coffee-cpu
 
 After drinking too much coffee, we built a CPU.
 
-##ISA
+## ISA
 
-###registers
+### registers
 There are 16 32-bit registers: R0-13,PC and RX. 
 PC (R14) is the program counter. Writing this register causes a jump in the code. 
 Rx (R15) is an overflow register. It cannot be written directly but will hold a second result value like the remainder of a division or the highest 32 bits of a multiplication.
 
-###instruction layout
+### instruction layout
 Instructions are 32 bit wide and consist of these bits:
 
     IB  ( 1bit) select register B or immediate value
@@ -51,15 +51,15 @@ Writeback of the ALU result (C-bus) to register Rc is conditional based on the W
 
 When the CMP (compare) instruction bit is set, the value on the C-bus is compared against 0 and the result is stored in the status register. The status register will then be used by the writeback condition of the following instructions.
 
-###memory
+### memory
 
 There is a 14 bit memory space, addressing 12 bit instruction memory, 12 bit program memory and a memory-mapped peripheral:
 0x3FFF : 16-bit register displayed on 7-segment LED display.
 
-##CPU
+## CPU
 Directory CPU/ has a verilog implementation of the CPU, which works on an FPGA (@mathiashelsen). The CPU currently clocks at 100MHz and issues 1 instruction per cycle (2 cycles for LOAD/STORE). 
 
-##assembler
+## assembler
 Command ``ass`` assembles source files into ihex executables, which can be loaded into the FPGA memory (@barnex)
 
 The instruction syntax closely follows the micro-instruction bit pattern described in package isa:
@@ -100,14 +100,14 @@ Means ``counter`` will now be substited by ``R0``, and ``R0`` cannot be used any
 
 godoc documentation: http://godoc.org/github.com/barnex/coffee-cpu/cmd/ass
 
-##emulator
+## emulator
 Command ``emu`` emulates ihex execution on a PC (@barnex). It features tracing execution (``-trace`` flag) which prints every executed instruction and the values of the registers it affects.
 ```
 emu -trace test.ihex
 ```
 
 
-##example program
+## example program
 ```
 // This test program cycles the hex display
 // through all 16-bit values
@@ -142,7 +142,7 @@ STORE   R1(2)   16383 N(false)     R0(0)
 
 Watch this program running on FPGA: https://youtu.be/CDd83oF9Tog (downclocked to 1Hz for clarity).
 
-##Project euler
+## Project euler
 
 We solved the first two problems of https://projecteuler.net/ on our CPU. E.g.: problem 2: Find the sum of even-valued Fibonacci numbers not exceeding four million:
 
